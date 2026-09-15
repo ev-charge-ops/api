@@ -26,6 +26,11 @@ describe('createOriginMatcher', () => {
   it('does not let the wildcard cross path or host boundaries', () => {
     expect(
       matches(
+        'https://ev-charge-ops-web-evil.com.x-rodrigogmdias-projects.vercel.app',
+      ),
+    ).toBe(false);
+    expect(
+      matches(
         'https://ev-charge-ops-web-x.evil.com/-rodrigogmdias-projects.vercel.app',
       ),
     ).toBe(false);
@@ -37,7 +42,9 @@ describe('createOriginMatcher', () => {
   });
 
   it('treats dots literally', () => {
-    expect(matches('http://localhostx5173')).toBe(false);
+    expect(
+      matches('https://ev-charge-ops-web-x-rodrigogmdias-projectsxvercelxapp'),
+    ).toBe(false);
   });
 
   it('rejects everything when no patterns are configured', () => {
