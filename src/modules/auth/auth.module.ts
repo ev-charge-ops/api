@@ -8,6 +8,7 @@ import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { OneTimeTokenService } from './one-time-token.service.js';
 import { PasswordService } from './password.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 
@@ -33,6 +34,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
     AuthService,
     PasswordService,
     RefreshTokenService,
+    OneTimeTokenService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
