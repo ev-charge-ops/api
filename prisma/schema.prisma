@@ -15,6 +15,12 @@ enum Role {
   MANAGER
 }
 
+enum OneTimeTokenType {
+  EMAIL_VERIFICATION
+  PASSWORD_RESET
+  EMAIL_LOGIN
+}
+
 model User {
   id            String         @id @default(uuid())
   name          String
@@ -24,6 +30,7 @@ model User {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  oneTimeTokens OneTimeToken[]
 }
 
 model RefreshToken {
@@ -36,4 +43,19 @@ model RefreshToken {
   createdAt DateTime  @default(now())
 
   @@index([userId])
+}
+
+model OneTimeToken {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       OneTimeTokenType
+  tokenHash  String           @unique
+  codeHash   String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int              @default(0)
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, type])
 }
