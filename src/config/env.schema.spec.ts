@@ -15,6 +15,9 @@ describe('validateEnv', () => {
       JWT_ACCESS_TTL: '15m',
       REFRESH_TTL_DAYS: 7,
       CORS_ORIGINS: [],
+      THROTTLE_TTL_SECONDS: 60,
+      THROTTLE_LIMIT: 100,
+      AUTH_THROTTLE_LIMIT: 10,
       MAIL_DRIVER: 'console',
       MAIL_FROM: 'EV ChargeOps <noreply@evchargeops.com.br>',
       APP_URL: 'http://localhost:5173',
@@ -96,5 +99,24 @@ describe('validateEnv', () => {
       validateEnv({ ...validEnv, APP_URL: 'https://app.evchargeops.com.br/' })
         .APP_URL,
     ).toBe('https://app.evchargeops.com.br');
+  });
+
+  it('coerces rate limit settings and proxy trust', () => {
+    const env = validateEnv({
+      ...validEnv,
+      THROTTLE_TTL_SECONDS: '30',
+      THROTTLE_LIMIT: '50',
+      AUTH_THROTTLE_LIMIT: '5',
+      TRUST_PROXY: 'true',
+    });
+    expect(env).toMatchObject({
+      THROTTLE_TTL_SECONDS: 30,
+      THROTTLE_LIMIT: 50,
+      AUTH_THROTTLE_LIMIT: 5,
+      TRUST_PROXY: true,
+    });
+    expect(() =>
+      validateEnv({ ...validEnv, AUTH_THROTTLE_LIMIT: '0' }),
+    ).toThrow(/AUTH_THROTTLE_LIMIT/);
   });
 });
