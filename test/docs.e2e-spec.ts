@@ -40,6 +40,8 @@ describe('OpenAPI docs (e2e)', () => {
     );
     expect(operations.sort()).toEqual([
       'GET /auth/me getMe',
+      'POST /auth/email-verification/confirm confirmEmailVerification',
+      'POST /auth/email-verification/resend resendEmailVerification',
       'POST /auth/login login',
       'POST /auth/logout logout',
       'POST /auth/refresh refresh',

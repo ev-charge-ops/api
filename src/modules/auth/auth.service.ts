@@ -7,10 +7,11 @@ import { JwtService } from '@nestjs/jwt';
 import type { AccessTokenPayload } from '../../common/types/authenticated-user.js';
 import { Prisma, type User } from '../../generated/prisma/client.js';
 import { UserResponseDto } from '../users/dto/user.response.dto.js';
-import { UsersService } from '../users/users.service.js';
+import { type CreateUserInput, UsersService } from '../users/users.service.js';
 import type { AuthResponseDto } from './dto/auth.response.dto.js';
 import type { LoginDto } from './dto/login.dto.js';
 import type { RegisterDto } from './dto/register.dto.js';
+import { EmailVerificationService } from './email-verification.service.js';
 import { PasswordService } from './password.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 
@@ -24,6 +25,7 @@ export class AuthService {
     private readonly passwords: PasswordService,
     private readonly refreshTokens: RefreshTokenService,
     private readonly jwt: JwtService,
+    private readonly emailVerification: EmailVerificationService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResponseDto> {
@@ -33,22 +35,13 @@ export class AuthService {
     }
 
     const passwordHash = await this.passwords.hash(dto.password);
-    try {
-      const user = await this.users.create({
-        name: dto.name.trim(),
-        email,
-        passwordHash,
-      });
-      return this.createSession(user);
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === UNIQUE_CONSTRAINT_VIOLATION
-      ) {
-        throw new ConflictException('Email already registered');
-      }
-      throw error;
-    }
+    const user = await this.createUser({
+      name: dto.name.trim(),
+      email,
+      passwordHash,
+    });
+    await this.emailVerification.sendVerificationEmail(user);
+    return this.createSession(user);
   }
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
@@ -85,6 +78,20 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     return UserResponseDto.fromEntity(user);
+  }
+
+  private async createUser(input: CreateUserInput): Promise<User> {
+    try {
+      return await this.users.create(input);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === UNIQUE_CONSTRAINT_VIOLATION
+      ) {
+        throw new ConflictException('Email already registered');
+      }
+      throw error;
+    }
   }
 
   private async createSession(user: User): Promise<AuthResponseDto> {
