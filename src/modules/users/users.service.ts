@@ -26,6 +26,10 @@ export class UsersService {
     return this.prisma.user.create({ data: input });
   }
 
+  async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({ where: { id }, data: { passwordHash } });
+  }
+
   async markEmailVerified(id: string): Promise<void> {
     await this.prisma.user.updateMany({
       where: { id, emailVerifiedAt: null },
