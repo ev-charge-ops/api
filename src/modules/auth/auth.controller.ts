@@ -17,6 +17,7 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { AuthRateLimit } from '../../common/rate-limit/auth-rate-limit.decorator.js';
 import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import { Public } from '../../common/decorators/public.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
@@ -33,6 +34,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   @Public()
+  @AuthRateLimit()
   @Post('register')
   @ApiOperation({ operationId: 'register', summary: 'Register a driver' })
   @ApiCreatedResponse({ type: AuthResponseDto })
@@ -43,6 +45,7 @@ export class AuthController {
   }
 
   @Public()
+  @AuthRateLimit()
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
