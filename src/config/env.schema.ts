@@ -25,6 +25,11 @@ export const envSchema = z
           .map((origin) => origin.trim())
           .filter((origin) => origin.length > 0),
       ),
+    THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
+    THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
+    AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
+    TRUST_PROXY: z.stringbool().optional(),
+    VERCEL: z.string().optional(),
     MAIL_DRIVER: z.enum(['console', 'resend']).default('console'),
     MAIL_FROM: z.string().min(1).default(DEFAULT_MAIL_FROM),
     RESEND_API_KEY: z.string().trim().optional(),
