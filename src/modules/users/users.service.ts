@@ -25,4 +25,11 @@ export class UsersService {
   create(input: CreateUserInput): Promise<User> {
     return this.prisma.user.create({ data: input });
   }
+
+  async markEmailVerified(id: string): Promise<void> {
+    await this.prisma.user.updateMany({
+      where: { id, emailVerifiedAt: null },
+      data: { emailVerifiedAt: new Date() },
+    });
+  }
 }

@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiAcceptedResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCreatedResponse,
@@ -23,7 +24,9 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { UserResponseDto } from '../users/dto/user.response.dto.js';
 import { AuthService } from './auth.service.js';
+import { EmailVerificationService } from './email-verification.service.js';
 import { AuthResponseDto } from './dto/auth.response.dto.js';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
@@ -31,7 +34,10 @@ import { RegisterDto } from './dto/register.dto.js';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly emailVerification: EmailVerificationService,
+  ) {}
 
   @Public()
   @AuthRateLimit()
@@ -90,5 +96,39 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
   getMe(@CurrentUser() user: AuthenticatedUser): Promise<UserResponseDto> {
     return this.auth.getProfile(user.id);
+  }
+
+  @Public()
+  @AuthRateLimit()
+  @Post('email-verification/confirm')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    operationId: 'confirmEmailVerification',
+    summary: 'Confirm the email address with the token sent by email',
+  })
+  @ApiNoContentResponse({ description: 'Email verified' })
+  @ApiBadRequestResponse({ description: 'Invalid, expired or used token' })
+  confirmEmailVerification(
+    @Body() dto: ConfirmEmailVerificationDto,
+  ): Promise<void> {
+    return this.emailVerification.confirm(dto.token);
+  }
+
+  @AuthRateLimit()
+  @Post('email-verification/resend')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiBearerAuth()
+  @ApiOperation({
+    operationId: 'resendEmailVerification',
+    summary: 'Send a new verification email to the authenticated user',
+  })
+  @ApiAcceptedResponse({
+    description: 'Verification email sent unless the email is already verified',
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
+  resendEmailVerification(
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<void> {
+    return this.emailVerification.resend(user.id);
   }
 }
