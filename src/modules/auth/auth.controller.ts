@@ -24,6 +24,7 @@ import { Public } from '../../common/decorators/public.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { UserResponseDto } from '../users/dto/user.response.dto.js';
 import { AuthService } from './auth.service.js';
+import { EmailLoginService } from './email-login.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { PasswordResetService } from './password-reset.service.js';
 import { AuthResponseDto } from './dto/auth.response.dto.js';
@@ -32,7 +33,9 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { RequestEmailLoginDto } from './dto/request-email-login.dto.js';
 import { ResetPasswordDto } from './dto/reset-password.dto.js';
+import { VerifyEmailLoginDto } from './dto/verify-email-login.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -41,6 +44,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly emailVerification: EmailVerificationService,
     private readonly passwordReset: PasswordResetService,
+    private readonly emailLogin: EmailLoginService,
   ) {}
 
   @Public()
@@ -168,5 +172,42 @@ export class AuthController {
   })
   resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
     return this.passwordReset.resetPassword(dto.token, dto.password);
+  }
+
+  @Public()
+  @AuthRateLimit()
+  @Post('email-login/request')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    operationId: 'requestEmailLogin',
+    summary: 'Send a login code and magic link if the email is registered',
+  })
+  @ApiAcceptedResponse({
+    description: 'Always accepted, whether or not the email is registered',
+  })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  requestEmailLogin(@Body() dto: RequestEmailLoginDto): Promise<void> {
+    return this.emailLogin.request(dto.email);
+  }
+
+  @Public()
+  @AuthRateLimit()
+  @Post('email-login/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    operationId: 'verifyEmailLogin',
+    summary: 'Log in with the emailed code or magic link token',
+    description:
+      'Send either { email, code } or { token }. Five wrong codes lock the current code and link.',
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  @ApiUnauthorizedResponse({ description: 'Invalid, expired or locked code' })
+  verifyEmailLogin(@Body() dto: VerifyEmailLoginDto): Promise<AuthResponseDto> {
+    return this.emailLogin.verify(
+      dto.token === undefined
+        ? { email: dto.email ?? '', code: dto.code ?? '' }
+        : { token: dto.token },
+    );
   }
 }
