@@ -80,6 +80,14 @@ export class AuthService {
     return UserResponseDto.fromEntity(user);
   }
 
+  async createSession(user: User): Promise<AuthResponseDto> {
+    return {
+      user: UserResponseDto.fromEntity(user),
+      accessToken: await this.signAccessToken(user),
+      refreshToken: await this.refreshTokens.issue(user.id),
+    };
+  }
+
   private async createUser(input: CreateUserInput): Promise<User> {
     try {
       return await this.users.create(input);
@@ -92,14 +100,6 @@ export class AuthService {
       }
       throw error;
     }
-  }
-
-  private async createSession(user: User): Promise<AuthResponseDto> {
-    return {
-      user: UserResponseDto.fromEntity(user),
-      accessToken: await this.signAccessToken(user),
-      refreshToken: await this.refreshTokens.issue(user.id),
-    };
   }
 
   private signAccessToken(user: User): Promise<string> {
