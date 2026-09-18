@@ -46,7 +46,7 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthResponseDto> {
     const user = await this.users.findByEmail(normalizeEmail(dto.email));
-    const valid = user
+    const valid = user?.passwordHash
       ? await this.passwords.verify(user.passwordHash, dto.password)
       : await this.passwords.verifyAgainstDummy(dto.password);
     if (!user || !valid) {
