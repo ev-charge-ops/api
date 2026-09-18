@@ -11,6 +11,10 @@ import { AuthService } from './auth.service.js';
 import { EmailLoginService } from './email-login.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { createOAuthTokenVerifier } from './oauth/jose-oauth-token-verifier.js';
+import { OAuthController } from './oauth/oauth.controller.js';
+import { OAuthService } from './oauth/oauth.service.js';
+import { OAuthTokenVerifier } from './oauth/oauth-token-verifier.js';
 import { OneTimeTokenService } from './one-time-token.service.js';
 import { PasswordService } from './password.service.js';
 import { PasswordResetService } from './password-reset.service.js';
@@ -34,7 +38,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
       }),
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, OAuthController],
   providers: [
     AuthService,
     PasswordService,
@@ -43,6 +47,12 @@ import { RefreshTokenService } from './refresh-token.service.js';
     EmailVerificationService,
     PasswordResetService,
     EmailLoginService,
+    OAuthService,
+    {
+      provide: OAuthTokenVerifier,
+      inject: [ConfigService],
+      useFactory: createOAuthTokenVerifier,
+    },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
