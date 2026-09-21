@@ -56,5 +56,6 @@ import { RefreshTokenService } from './refresh-token.service.js';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
+  exports: [AuthService, PasswordService],
 })
 export class AuthModule {}
