@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { createPrismaAdapter } from '../src/database/prisma-adapter.factory.js';
+import {
+  buildDemoOrganization,
+  upsertDemoOrganization,
+} from './demo-organization.js';
 import { buildDemoUsers, parseSeedEnv, upsertDemoUsers } from './demo-users.js';
 
 async function main(): Promise<void> {
@@ -9,7 +13,12 @@ async function main(): Promise<void> {
     throw new Error('DATABASE_URL is required to seed the database');
   }
 
-  const users = buildDemoUsers(parseSeedEnv(process.env));
+  const env = parseSeedEnv(process.env);
+  const users = buildDemoUsers(env);
+  const organization = buildDemoOrganization({
+    managerEmail: env.SEED_MANAGER_EMAIL,
+    driverEmail: env.SEED_DRIVER_EMAIL,
+  });
   const prisma = new PrismaClient({
     adapter: createPrismaAdapter(connectionString),
   });
@@ -18,6 +27,8 @@ async function main(): Promise<void> {
     for (const user of users) {
       console.log(`Seeded ${user.role} ${user.email}`);
     }
+    await upsertDemoOrganization(prisma, organization);
+    console.log(`Seeded organization ${organization.name}`);
   } finally {
     await prisma.$disconnect();
   }
