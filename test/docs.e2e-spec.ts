@@ -53,6 +53,7 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /auth/logout logout',
       'POST /auth/oauth/apple loginWithApple',
       'POST /auth/oauth/google loginWithGoogle',
+      'POST /auth/oauth/google/code loginWithGoogleCode',
       'POST /auth/password/forgot forgotPassword',
       'POST /auth/password/reset resetPassword',
       'POST /auth/refresh refresh',

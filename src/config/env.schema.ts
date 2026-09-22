@@ -42,6 +42,8 @@ export const envSchema = z
       .transform((value) => value.replace(/\/+$/, '')),
     GOOGLE_CLIENT_IDS: commaSeparatedList(),
     APPLE_CLIENT_IDS: commaSeparatedList(),
+    GOOGLE_WEB_CLIENT_ID: z.string().trim().default(''),
+    GOOGLE_CLIENT_SECRET: z.string().trim().default(''),
   })
   .superRefine((env, context) => {
     if (env.MAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
