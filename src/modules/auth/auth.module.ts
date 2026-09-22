@@ -11,6 +11,8 @@ import { AuthService } from './auth.service.js';
 import { EmailLoginService } from './email-login.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
+import { createGoogleAuthCodeExchanger } from './oauth/fetch-google-auth-code-exchanger.js';
+import { GoogleAuthCodeExchanger } from './oauth/google-auth-code-exchanger.js';
 import { createOAuthTokenVerifier } from './oauth/jose-oauth-token-verifier.js';
 import { OAuthController } from './oauth/oauth.controller.js';
 import { OAuthService } from './oauth/oauth.service.js';
@@ -52,6 +54,11 @@ import { RefreshTokenService } from './refresh-token.service.js';
       provide: OAuthTokenVerifier,
       inject: [ConfigService],
       useFactory: createOAuthTokenVerifier,
+    },
+    {
+      provide: GoogleAuthCodeExchanger,
+      inject: [ConfigService],
+      useFactory: createGoogleAuthCodeExchanger,
     },
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
