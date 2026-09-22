@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import {
   createRemoteJWKSet,
@@ -38,6 +39,8 @@ export type OAuthProviderSettingsMap = Record<
 >;
 
 export class JoseOAuthTokenVerifier extends OAuthTokenVerifier {
+  private readonly logger = new Logger(JoseOAuthTokenVerifier.name);
+
   constructor(private readonly providers: OAuthProviderSettingsMap) {
     super();
   }
@@ -87,6 +90,7 @@ export class JoseOAuthTokenVerifier extends OAuthTokenVerifier {
       return payload;
     } catch (error) {
       if (error instanceof errors.JOSEError) {
+        this.logger.warn(`Identity token rejected: ${describeJoseError(error)}`);
         throw new InvalidOAuthTokenError('Invalid identity token');
       }
       throw error;
@@ -131,4 +135,11 @@ function readName(payload: JWTPayload): string | undefined {
     .filter((part): part is string => part !== undefined)
     .map((part) => part.trim());
   return parts.length > 0 ? parts.join(' ') : undefined;
+}
+
+function describeJoseError(error: errors.JOSEError): string {
+  if (error instanceof errors.JWTClaimValidationFailed) {
+    return `${error.code} (${error.claim})`;
+  }
+  return error.code;
 }
