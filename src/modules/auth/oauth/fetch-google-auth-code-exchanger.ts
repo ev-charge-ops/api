@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import type { Env } from '../../../config/env.schema.js';
 import {
@@ -18,6 +19,7 @@ export interface GoogleAuthCodeExchangerSettings {
 
 export class FetchGoogleAuthCodeExchanger extends GoogleAuthCodeExchanger {
   private readonly fetch: typeof fetch;
+  private readonly logger = new Logger(FetchGoogleAuthCodeExchanger.name);
 
   constructor(private readonly settings: GoogleAuthCodeExchangerSettings) {
     super();
@@ -49,6 +51,10 @@ export class FetchGoogleAuthCodeExchanger extends GoogleAuthCodeExchanger {
     });
 
     if (!response.ok) {
+      const reason = readErrorCode(await response.json().catch(() => null));
+      this.logger.warn(
+        `Google token exchange failed with status ${response.status}: ${reason}`,
+      );
       throw new InvalidGoogleAuthCodeError('Invalid authorization code');
     }
 
@@ -77,4 +83,12 @@ function readIdToken(body: unknown): string | undefined {
   return typeof idToken === 'string' && idToken.length > 0
     ? idToken
     : undefined;
+}
+
+function readErrorCode(body: unknown): string {
+  if (typeof body !== 'object' || body === null || !('error' in body)) {
+    return 'unknown';
+  }
+  const { error } = body;
+  return typeof error === 'string' ? error : 'unknown';
 }
