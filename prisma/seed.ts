@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { createPrismaAdapter } from '../src/database/prisma-adapter.factory.js';
+import { buildDemoSite, upsertDemoSite } from './demo-charge-points.js';
 import {
   buildDemoOrganization,
   upsertDemoOrganization,
@@ -29,6 +30,9 @@ async function main(): Promise<void> {
     }
     await upsertDemoOrganization(prisma, organization);
     console.log(`Seeded organization ${organization.name}`);
+    const site = buildDemoSite(organization.id);
+    await upsertDemoSite(prisma, site);
+    console.log(`Seeded ${site.chargePoints.length} charge points and tariffs`);
   } finally {
     await prisma.$disconnect();
   }
