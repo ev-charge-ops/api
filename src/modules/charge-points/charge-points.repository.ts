@@ -3,16 +3,27 @@ import { PrismaService } from '../../database/prisma.service.js';
 import type {
   ChargePoint,
   Charger,
+  Membership,
   Organization,
   Tariff,
 } from '../../generated/prisma/client.js';
+import type { OccupyingSessionStatus } from './charge-point-status.js';
 
 export type ChargePointRecord = ChargePoint & {
-  organization: Organization & { memberships: { id: string }[] };
+  organization: Organization & {
+    memberships: Pick<Membership, 'id' | 'unitLabel'>[];
+  };
   chargers: Charger[];
 };
 
 export type SitePoint = Pick<ChargePoint, 'id' | 'organizationId' | 'isOnline'>;
+
+export const OCCUPYING_SESSION_STATUSES: OccupyingSessionStatus[] = [
+  'PENDING',
+  'ACTIVE',
+  'GRACE',
+  'IDLE',
+];
 
 @Injectable()
 export class ChargePointsRepository {
@@ -30,7 +41,10 @@ export class ChargePointsRepository {
       include: {
         organization: {
           include: {
-            memberships: { where: { userId }, select: { id: true } },
+            memberships: {
+              where: { userId },
+              select: { id: true, unitLabel: true },
+            },
           },
         },
         chargers: { orderBy: { createdAt: 'asc' } },
@@ -44,6 +58,24 @@ export class ChargePointsRepository {
       where: { organizationId: { in: organizationIds } },
       select: { id: true, organizationId: true, isOnline: true },
     });
+  }
+
+  async findOccupyingSessions(
+    chargePointIds: string[],
+  ): Promise<Map<string, OccupyingSessionStatus>> {
+    const sessions = await this.prisma.chargingSession.findMany({
+      where: {
+        chargePointId: { in: chargePointIds },
+        status: { in: OCCUPYING_SESSION_STATUSES },
+      },
+      select: { chargePointId: true, status: true },
+    });
+    return new Map(
+      sessions.map((session) => [
+        session.chargePointId,
+        session.status as OccupyingSessionStatus,
+      ]),
+    );
   }
 
   findTariffs(organizationIds: string[], at: Date): Promise<Tariff[]> {

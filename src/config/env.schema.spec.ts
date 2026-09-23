@@ -25,7 +25,15 @@ describe('validateEnv', () => {
       APPLE_CLIENT_IDS: [],
       GOOGLE_WEB_CLIENT_ID: '',
       GOOGLE_CLIENT_SECRET: '',
+      CHARGER_DRIVER: 'mock',
+      SIMULATION_SPEED: 60,
     });
+  });
+
+  it('rejects a simulation speed below real time', () => {
+    expect(() => validateEnv({ ...validEnv, SIMULATION_SPEED: '0' })).toThrow(
+      /SIMULATION_SPEED/,
+    );
   });
 
   it('coerces PORT to a number', () => {

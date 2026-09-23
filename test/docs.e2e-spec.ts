@@ -48,6 +48,9 @@ describe('OpenAPI docs (e2e)', () => {
       'GET /organizations/{organizationId}/invites listInvites',
       'GET /organizations/{organizationId}/members listOrganizationMembers',
       'GET /organizations/{organizationId}/tariff getOrganizationTariff',
+      'GET /sessions listMySessions',
+      'GET /sessions/active getActiveSession',
+      'GET /sessions/{sessionId} getSession',
       'PATCH /organizations/{organizationId}/tariff updateOrganizationTariff',
       'POST /auth/email-login/request requestEmailLogin',
       'POST /auth/email-login/verify verifyEmailLogin',
@@ -66,6 +69,8 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
       'POST /organizations/{organizationId}/invites createInvite',
       'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
+      'POST /sessions startSession',
+      'POST /sessions/{sessionId}/stop stopSession',
     ]);
     expect(response.body.components.securitySchemes).toHaveProperty('bearer');
     expect(response.body.components.schemas.Role).toEqual({
