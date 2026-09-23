@@ -3,6 +3,12 @@ import { PrismaClient } from '../src/generated/prisma/client.js';
 import { createPrismaAdapter } from '../src/database/prisma-adapter.factory.js';
 import { buildDemoSite, upsertDemoSite } from './demo-charge-points.js';
 import {
+  buildDemoHistory,
+  buildDemoResidents,
+  insertDemoHistory,
+  upsertDemoResidents,
+} from './demo-history.js';
+import {
   buildDemoOrganization,
   upsertDemoOrganization,
 } from './demo-organization.js';
@@ -33,6 +39,31 @@ async function main(): Promise<void> {
     const site = buildDemoSite(organization.id);
     await upsertDemoSite(prisma, site);
     console.log(`Seeded ${site.chargePoints.length} charge points and tariffs`);
+
+    const residents = await upsertDemoResidents(
+      prisma,
+      organization.id,
+      buildDemoResidents(),
+    );
+    const demoDriver = await prisma.user.findUniqueOrThrow({
+      where: { email: env.SEED_DRIVER_EMAIL },
+    });
+    const history = buildDemoHistory({
+      organizationId: organization.id,
+      now: new Date(),
+      points: site.chargePoints.map((point) => ({
+        id: point.id,
+        code: point.code,
+        type: point.type,
+        maxPowerKw: point.maxPowerKw,
+        rateCents: point.tariff?.baseRateCents ?? site.tariff.utilityRateCents,
+      })),
+      drivers: [...residents, { userId: demoDriver.id, unitLabel: 'B · 42' }],
+    });
+    const inserted = await insertDemoHistory(prisma, history);
+    console.log(
+      `Seeded ${residents.length} residents and ${inserted} of ${history.length} historical sessions`,
+    );
   } finally {
     await prisma.$disconnect();
   }
