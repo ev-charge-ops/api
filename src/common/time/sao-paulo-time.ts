@@ -35,3 +35,48 @@ export function toSaoPauloTime(date: Date): LocalTime {
     dayOfWeek: WEEKDAYS.indexOf(parts.weekday),
   };
 }
+
+const SAO_PAULO_UTC_OFFSET = '-03:00';
+
+export interface MonthRange {
+  year: number;
+  month: number;
+  start: Date;
+  end: Date;
+}
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0');
+}
+
+export function saoPauloDate(
+  year: number,
+  month: number,
+  day: number,
+  hour = 0,
+  minute = 0,
+): Date {
+  return new Date(
+    `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}:00.000${SAO_PAULO_UTC_OFFSET}`,
+  );
+}
+
+export function saoPauloMonth(year: number, month: number): MonthRange {
+  const next =
+    month === 12 ? { year: year + 1, month: 1 } : { year, month: month + 1 };
+  return {
+    year,
+    month,
+    start: saoPauloDate(year, month, 1),
+    end: saoPauloDate(next.year, next.month, 1),
+  };
+}
+
+export function saoPauloMonthOf(date: Date): MonthRange {
+  const local = toSaoPauloTime(date);
+  return saoPauloMonth(local.year, local.month);
+}
+
+export function formatMonth(range: Pick<MonthRange, 'year' | 'month'>): string {
+  return `${range.year}-${pad(range.month)}`;
+}
