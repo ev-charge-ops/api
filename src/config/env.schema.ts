@@ -46,6 +46,10 @@ export const envSchema = z
     GOOGLE_CLIENT_SECRET: z.string().trim().default(''),
     CHARGER_DRIVER: z.enum(['mock', 'sems']).default('mock'),
     SIMULATION_SPEED: z.coerce.number().int().min(1).max(3600).default(60),
+    ML_URL: z
+      .union([z.literal(''), z.url()])
+      .default('')
+      .transform((value) => value.replace(/\/+$/, '')),
   })
   .superRefine((env, context) => {
     if (env.MAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
