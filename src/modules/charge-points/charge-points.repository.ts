@@ -19,6 +19,7 @@ export type ChargePointRecord = ChargePoint & {
 export type SitePoint = Pick<ChargePoint, 'id' | 'organizationId' | 'isOnline'>;
 
 export const OCCUPYING_SESSION_STATUSES: OccupyingSessionStatus[] = [
+  'AWAITING_PAYMENT',
   'PENDING',
   'ACTIVE',
   'GRACE',

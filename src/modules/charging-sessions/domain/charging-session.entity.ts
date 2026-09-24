@@ -9,6 +9,14 @@ import {
   idleFeeCents,
   sessionMinutesBetween,
 } from './session-fees.js';
+import {
+  chargeableEnergyWh,
+  PAYMENT_CURRENCY,
+  type PaymentSettlement,
+  PaymentStatus,
+  type SessionPayment,
+  settlementFor,
+} from './session-payment.js';
 import { isOpenStatus, SessionStatus } from './session-status.js';
 
 export type Regime = 'PRIVATE' | 'COMMERCIAL';
@@ -60,6 +68,7 @@ export interface ChargingSessionProps {
   anomalyScore: number | null;
   isAnomaly: boolean | null;
   anomalyModelVersion: string | null;
+  payment: SessionPayment | null;
   version: Date | null;
 }
 
@@ -93,6 +102,14 @@ export type NewChargingSession = Pick<
   | 'startedAt'
 >;
 
+export interface NewPayment {
+  intentId: string;
+  customerId: string;
+  amountCents: number;
+}
+
+const MINUTE_IN_MS = 60_000;
+
 export class SessionAlreadyEndedError extends Error {
   override readonly name = 'SessionAlreadyEndedError';
 }
@@ -107,7 +124,10 @@ export class ChargingSession {
   static create(data: NewChargingSession): ChargingSession {
     return new ChargingSession({
       ...data,
-      status: SessionStatus.PENDING,
+      status:
+        data.regime === 'COMMERCIAL'
+          ? SessionStatus.AWAITING_PAYMENT
+          : SessionStatus.PENDING,
       targetEnergyWh: null,
       batteryCapacityWh: null,
       initialSocPercent: null,
@@ -125,12 +145,16 @@ export class ChargingSession {
       anomalyScore: null,
       isAnomaly: null,
       anomalyModelVersion: null,
+      payment: null,
       version: null,
     });
   }
 
   static restore(props: ChargingSessionProps): ChargingSession {
-    return new ChargingSession({ ...props });
+    return new ChargingSession({
+      ...props,
+      payment: props.payment ? { ...props.payment } : null,
+    });
   }
 
   get id(): string {
@@ -143,6 +167,21 @@ export class ChargingSession {
 
   get status(): SessionStatus {
     return this.props.status;
+  }
+
+  get requiresPayment(): boolean {
+    return this.props.regime === 'COMMERCIAL';
+  }
+
+  get payment(): SessionPayment | null {
+    return this.props.payment ? { ...this.props.payment } : null;
+  }
+
+  get paymentSettlement(): PaymentSettlement | null {
+    if (!this.props.payment || this.isOpen) {
+      return null;
+    }
+    return settlementFor(this.props.payment, this.props.totalCents);
   }
 
   get isOpen(): boolean {
@@ -158,25 +197,107 @@ export class ChargingSession {
   }
 
   toProps(): ChargingSessionProps {
-    return { ...this.props };
+    return {
+      ...this.props,
+      payment: this.props.payment ? { ...this.props.payment } : null,
+    };
   }
 
   markPersisted(version: Date): void {
     this.props.version = version;
   }
 
-  activate(transactionId: string, vehicle: Vehicle): void {
+  activate(transactionId: string, vehicle: Vehicle, at: Date): void {
     this.expectStatus(SessionStatus.PENDING);
     this.props.status = SessionStatus.ACTIVE;
+    this.props.startedAt = at;
     this.props.externalTransactionId = transactionId;
     this.props.batteryCapacityWh = vehicle.batteryCapacityWh;
     this.props.initialSocPercent = vehicle.socPercent;
     this.props.socPercent = vehicle.socPercent;
     this.props.powerKw = this.props.allocatedPowerKw;
-    this.props.targetEnergyWh = targetEnergyWh(
-      this.props.limit,
-      vehicle,
-      this.props.lockedRateCents,
+    this.props.targetEnergyWh = Math.min(
+      targetEnergyWh(this.props.limit, vehicle, this.props.lockedRateCents),
+      this.payableEnergyWh(),
+    );
+  }
+
+  attachPayment(payment: NewPayment): void {
+    this.expectStatus(SessionStatus.AWAITING_PAYMENT);
+    this.props.payment = {
+      intentId: payment.intentId,
+      customerId: payment.customerId,
+      status: PaymentStatus.PENDING_AUTHORIZATION,
+      currency: PAYMENT_CURRENCY,
+      authorizedCents: payment.amountCents,
+      capturedCents: null,
+      failureCode: null,
+      authorizedAt: null,
+      capturedAt: null,
+      canceledAt: null,
+    };
+  }
+
+  recordPaymentAuthorized(amountCents: number, at: Date): boolean {
+    const payment = this.expectPayment();
+    if (
+      payment.status !== PaymentStatus.PENDING_AUTHORIZATION &&
+      payment.status !== PaymentStatus.FAILED
+    ) {
+      return false;
+    }
+    payment.status = PaymentStatus.AUTHORIZED;
+    payment.authorizedCents = amountCents;
+    payment.authorizedAt = at;
+    payment.failureCode = null;
+    if (this.props.status !== SessionStatus.AWAITING_PAYMENT) {
+      return false;
+    }
+    this.props.status = SessionStatus.PENDING;
+    return true;
+  }
+
+  recordPaymentFailed(failureCode: string): void {
+    const payment = this.expectPayment();
+    if (
+      payment.status === PaymentStatus.PENDING_AUTHORIZATION ||
+      payment.status === PaymentStatus.FAILED
+    ) {
+      payment.status = PaymentStatus.FAILED;
+      payment.failureCode = failureCode;
+    }
+  }
+
+  recordPaymentCanceled(at: Date): void {
+    const payment = this.expectPayment();
+    if (
+      payment.status === PaymentStatus.CAPTURED ||
+      payment.status === PaymentStatus.CANCELED
+    ) {
+      return;
+    }
+    payment.status = PaymentStatus.CANCELED;
+    payment.canceledAt = at;
+    if (this.props.status === SessionStatus.AWAITING_PAYMENT) {
+      this.interrupt(at);
+    }
+  }
+
+  recordPaymentCaptured(amountCents: number, at: Date): void {
+    const payment = this.expectPayment();
+    if (payment.status === PaymentStatus.CAPTURED) {
+      return;
+    }
+    payment.status = PaymentStatus.CAPTURED;
+    payment.capturedCents = amountCents;
+    payment.capturedAt = at;
+  }
+
+  isPaymentOverdue(now: Date, timeoutMinutes: number): boolean {
+    return (
+      this.props.status === SessionStatus.AWAITING_PAYMENT &&
+      now.getTime() - this.props.startedAt.getTime() >=
+        timeoutMinutes * MINUTE_IN_MS
     );
   }
 
@@ -237,6 +358,7 @@ export class ChargingSession {
 
   stop(now: Date): void {
     switch (this.props.status) {
+      case SessionStatus.AWAITING_PAYMENT:
       case SessionStatus.PENDING:
         this.interrupt(now);
         return;
@@ -269,6 +391,25 @@ export class ChargingSession {
         `Expected a ${status} session but it is ${this.props.status}`,
       );
     }
+  }
+
+  private expectPayment(): SessionPayment {
+    if (!this.props.payment) {
+      throw new InvalidSessionTransitionError('Session has no payment');
+    }
+    return this.props.payment;
+  }
+
+  private payableEnergyWh(): number {
+    const { payment, idleFeeCapCents, lockedRateCents } = this.props;
+    if (!payment) {
+      return Number.MAX_SAFE_INTEGER;
+    }
+    return chargeableEnergyWh(
+      payment.authorizedCents,
+      idleFeeCapCents,
+      lockedRateCents,
+    );
   }
 
   private updateTotals(): void {

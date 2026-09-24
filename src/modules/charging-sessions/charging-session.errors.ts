@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { PaymentsUnavailableError } from '../payments/payment-gateway.port.js';
 
 export const SessionErrorCode = {
   SESSION_NOT_FOUND: 'SESSION_NOT_FOUND',
@@ -10,6 +11,11 @@ export const SessionErrorCode = {
   BUILDING_CAPACITY_EXCEEDED: 'BUILDING_CAPACITY_EXCEEDED',
   INVALID_LIMIT: 'INVALID_LIMIT',
   CHARGER_UNAVAILABLE: 'CHARGER_UNAVAILABLE',
+  PAYMENTS_UNAVAILABLE: 'PAYMENTS_UNAVAILABLE',
+  PAYMENT_PROVIDER_ERROR: 'PAYMENT_PROVIDER_ERROR',
+  PAYMENT_NOT_REQUIRED: 'PAYMENT_NOT_REQUIRED',
+  PAYMENT_NOT_PENDING: 'PAYMENT_NOT_PENDING',
+  INVALID_WEBHOOK_SIGNATURE: 'INVALID_WEBHOOK_SIGNATURE',
 } as const;
 
 export type SessionErrorCode =
@@ -19,6 +25,7 @@ const ERROR_NAMES: Partial<Record<HttpStatus, string>> = {
   [HttpStatus.BAD_REQUEST]: 'Bad Request',
   [HttpStatus.NOT_FOUND]: 'Not Found',
   [HttpStatus.CONFLICT]: 'Conflict',
+  [HttpStatus.BAD_GATEWAY]: 'Bad Gateway',
   [HttpStatus.SERVICE_UNAVAILABLE]: 'Service Unavailable',
 };
 
@@ -46,4 +53,23 @@ export function sessionConflict(
   message: string,
 ): HttpException {
   return sessionError(HttpStatus.CONFLICT, code, message);
+}
+
+export function paymentsUnavailable(): HttpException {
+  return sessionError(
+    HttpStatus.SERVICE_UNAVAILABLE,
+    SessionErrorCode.PAYMENTS_UNAVAILABLE,
+    'Card payments are not configured',
+  );
+}
+
+export function paymentProviderError(error: unknown): HttpException {
+  if (error instanceof PaymentsUnavailableError) {
+    return paymentsUnavailable();
+  }
+  return sessionError(
+    HttpStatus.BAD_GATEWAY,
+    SessionErrorCode.PAYMENT_PROVIDER_ERROR,
+    'The payment provider did not respond, try again',
+  );
 }

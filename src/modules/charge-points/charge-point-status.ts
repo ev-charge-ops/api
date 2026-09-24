@@ -8,7 +8,8 @@ export const ChargePointStatus = {
 export type ChargePointStatus =
   (typeof ChargePointStatus)[keyof typeof ChargePointStatus];
 
-export type OccupyingSessionStatus = 'PENDING' | 'ACTIVE' | 'GRACE' | 'IDLE';
+export type OccupyingSessionStatus =
+  'AWAITING_PAYMENT' | 'PENDING' | 'ACTIVE' | 'GRACE' | 'IDLE';
 
 export function chargePointStatus(
   isOnline: boolean,
@@ -20,6 +21,7 @@ export function chargePointStatus(
   switch (occupyingSession) {
     case null:
       return ChargePointStatus.AVAILABLE;
+    case 'AWAITING_PAYMENT':
     case 'PENDING':
     case 'ACTIVE':
       return ChargePointStatus.CHARGING;
