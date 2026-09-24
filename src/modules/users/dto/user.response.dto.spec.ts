@@ -9,6 +9,7 @@ describe('UserResponseDto', () => {
       passwordHash: 'hash',
       role: 'DRIVER',
       emailVerifiedAt: null,
+      stripeCustomerId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -30,6 +31,7 @@ describe('UserResponseDto', () => {
       passwordHash: 'hash',
       role: 'DRIVER',
       emailVerifiedAt: new Date(),
+      stripeCustomerId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

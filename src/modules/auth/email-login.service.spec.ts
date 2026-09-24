@@ -19,6 +19,7 @@ const user: User = {
   passwordHash: 'hash',
   role: 'DRIVER',
   emailVerifiedAt: null,
+  stripeCustomerId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };

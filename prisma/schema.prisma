@@ -41,6 +41,7 @@ enum ConnectorType {
 }
 
 enum ChargingSessionStatus {
+  AWAITING_PAYMENT
   PENDING
   ACTIVE
   GRACE
@@ -60,6 +61,14 @@ enum DemandFactorSource {
   MODEL
 }
 
+enum PaymentStatus {
+  PENDING_AUTHORIZATION
+  AUTHORIZED
+  CAPTURED
+  CANCELED
+  FAILED
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -67,21 +76,22 @@ enum OneTimeTokenType {
 }
 
 model User {
-  id              String            @id @default(uuid())
-  name            String
-  email           String            @unique
-  passwordHash    String?
-  role            Role              @default(DRIVER)
-  emailVerifiedAt DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
-  refreshTokens   RefreshToken[]
-  oneTimeTokens   OneTimeToken[]
-  identities      UserIdentity[]
-  memberships     Membership[]
-  invitesSent     Invite[]          @relation("InvitesSent")
-  invitesAccepted Invite[]          @relation("InvitesAccepted")
-  sessions        ChargingSession[]
+  id               String            @id @default(uuid())
+  name             String
+  email            String            @unique
+  passwordHash     String?
+  role             Role              @default(DRIVER)
+  emailVerifiedAt  DateTime?
+  stripeCustomerId String?           @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  refreshTokens    RefreshToken[]
+  oneTimeTokens    OneTimeToken[]
+  identities       UserIdentity[]
+  memberships      Membership[]
+  invitesSent      Invite[]          @relation("InvitesSent")
+  invitesAccepted  Invite[]          @relation("InvitesAccepted")
+  sessions         ChargingSession[]
 }
 
 model UserIdentity {
@@ -269,6 +279,7 @@ model ChargingSession {
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   readings              MeterReading[]
+  payment               Payment?
 
   @@index([userId, status])
   @@index([chargePointId, status])
@@ -285,4 +296,28 @@ model MeterReading {
   socPercent Int?
 
   @@index([sessionId, at])
+}
+
+model Payment {
+  id                    String          @id @default(uuid())
+  sessionId             String          @unique
+  session               ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  stripePaymentIntentId String          @unique
+  stripeCustomerId      String
+  status                PaymentStatus   @default(PENDING_AUTHORIZATION)
+  currency              String          @default("BRL")
+  authorizedCents       Int
+  capturedCents         Int?
+  failureCode           String?
+  authorizedAt          DateTime?
+  capturedAt            DateTime?
+  canceledAt            DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model ProcessedPaymentEvent {
+  id          String   @id
+  type        String
+  processedAt DateTime @default(now())
 }
