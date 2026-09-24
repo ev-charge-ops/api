@@ -81,6 +81,9 @@ export class OrganizationSessionDto {
     description: 'Anomaly score from the ML service, when available',
   })
   anomalyScore: number | null;
+
+  @ApiProperty({ type: Boolean, nullable: true })
+  isAnomaly: boolean | null;
 }
 
 export class OrganizationSessionPageDto {

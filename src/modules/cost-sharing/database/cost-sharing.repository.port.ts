@@ -23,6 +23,7 @@ export interface OrganizationSessionRow {
   idleFeeCents: number;
   totalCents: number;
   anomalyScore: number | null;
+  isAnomaly: boolean | null;
 }
 
 export interface OrganizationSessionFilters {

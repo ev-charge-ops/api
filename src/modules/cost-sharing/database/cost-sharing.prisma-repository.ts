@@ -120,6 +120,7 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
         idleFeeCents: session.idleFeeCents,
         totalCents: session.totalCents,
         anomalyScore: session.anomalyScore?.toNumber() ?? null,
+        isAnomaly: session.isAnomaly,
       })),
     };
   }
