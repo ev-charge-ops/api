@@ -41,6 +41,7 @@ export interface ChargingSessionProps {
   lockedRateCents: number;
   demandFactor: number;
   demandFactorSource: DemandSource;
+  demandModelVersion: string | null;
   idleFeeCentsPerMinute: number;
   idleFeeCapCents: number;
   gracePeriodMinutes: number;
@@ -57,7 +58,15 @@ export interface ChargingSessionProps {
   idleFeeCents: number;
   totalCents: number;
   anomalyScore: number | null;
+  isAnomaly: boolean | null;
+  anomalyModelVersion: string | null;
   version: Date | null;
+}
+
+export interface AnomalyResult {
+  score: number;
+  isAnomaly: boolean;
+  modelVersion: string | null;
 }
 
 export type NewChargingSession = Pick<
@@ -77,6 +86,7 @@ export type NewChargingSession = Pick<
   | 'lockedRateCents'
   | 'demandFactor'
   | 'demandFactorSource'
+  | 'demandModelVersion'
   | 'idleFeeCentsPerMinute'
   | 'idleFeeCapCents'
   | 'gracePeriodMinutes'
@@ -113,6 +123,8 @@ export class ChargingSession {
       idleFeeCents: 0,
       totalCents: 0,
       anomalyScore: null,
+      isAnomaly: null,
+      anomalyModelVersion: null,
       version: null,
     });
   }
@@ -242,6 +254,13 @@ export class ChargingSession {
     this.props.status = SessionStatus.CLOSED;
     this.props.endedAt = now;
     this.updateTotals();
+  }
+
+  recordAnomaly(result: AnomalyResult): void {
+    this.expectStatus(SessionStatus.CLOSED);
+    this.props.anomalyScore = result.score;
+    this.props.isAnomaly = result.isAnomaly;
+    this.props.anomalyModelVersion = result.modelVersion;
   }
 
   private expectStatus(status: SessionStatus): void {

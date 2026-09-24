@@ -84,6 +84,7 @@ export function toDomain(record: ChargingSessionWithPoint): ChargingSession {
     lockedRateCents: record.lockedRateCents,
     demandFactor: record.demandFactor.toNumber(),
     demandFactorSource: record.demandFactorSource,
+    demandModelVersion: record.demandModelVersion,
     idleFeeCentsPerMinute: record.idleFeeCentsPerMinute,
     idleFeeCapCents: record.idleFeeCapCents,
     gracePeriodMinutes: record.gracePeriodMinutes,
@@ -100,6 +101,8 @@ export function toDomain(record: ChargingSessionWithPoint): ChargingSession {
     idleFeeCents: record.idleFeeCents,
     totalCents: record.totalCents,
     anomalyScore: record.anomalyScore?.toNumber() ?? null,
+    isAnomaly: record.isAnomaly,
+    anomalyModelVersion: record.anomalyModelVersion,
     version: record.updatedAt,
   });
 }
@@ -127,6 +130,8 @@ export function toStateData(props: ChargingSessionProps) {
     totalCents: props.totalCents,
     anomalyScore:
       props.anomalyScore === null ? null : props.anomalyScore.toFixed(4),
+    isAnomaly: props.isAnomaly,
+    anomalyModelVersion: props.anomalyModelVersion,
   };
 }
 
@@ -149,6 +154,7 @@ export function toCreateData(
     lockedRateCents: props.lockedRateCents,
     demandFactor: props.demandFactor.toFixed(2),
     demandFactorSource: props.demandFactorSource,
+    demandModelVersion: props.demandModelVersion,
     idleFeeCentsPerMinute: props.idleFeeCentsPerMinute,
     idleFeeCapCents: props.idleFeeCapCents,
     gracePeriodMinutes: props.gracePeriodMinutes,
@@ -228,6 +234,7 @@ function responseFields(session: ChargingSession): SessionResponseDto {
     lockedRateCents: props.lockedRateCents,
     demandFactor: props.demandFactor,
     demandFactorSource: props.demandFactorSource,
+    demandModelVersion: props.demandModelVersion,
     energyCostCents: props.energyCostCents,
     gracePeriodMinutes: props.gracePeriodMinutes,
     idleFeeCentsPerMinute: props.idleFeeCentsPerMinute,
@@ -236,6 +243,7 @@ function responseFields(session: ChargingSession): SessionResponseDto {
     idleFeeCents: props.idleFeeCents,
     totalCents: props.totalCents,
     anomalyScore: props.anomalyScore,
+    isAnomaly: props.isAnomaly,
     simulationSpeed: props.timeScale,
   };
 }
