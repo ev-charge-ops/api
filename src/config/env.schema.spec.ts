@@ -28,7 +28,28 @@ describe('validateEnv', () => {
       CHARGER_DRIVER: 'mock',
       SIMULATION_SPEED: 60,
       ML_URL: '',
+      STRIPE_SECRET_KEY: '',
+      STRIPE_WEBHOOK_SECRET: '',
+      STRIPE_PUBLISHABLE_KEY: '',
+      PAYMENT_HOLD_ENERGY_KWH: 60,
+      PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: 15,
     });
+  });
+
+  it('coerces the payment hold settings and rejects invalid ones', () => {
+    const env = validateEnv({
+      ...validEnv,
+      PAYMENT_HOLD_ENERGY_KWH: '42.5',
+      PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: '30',
+    });
+    expect(env.PAYMENT_HOLD_ENERGY_KWH).toBe(42.5);
+    expect(env.PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES).toBe(30);
+    expect(() =>
+      validateEnv({ ...validEnv, PAYMENT_HOLD_ENERGY_KWH: '0' }),
+    ).toThrow(/PAYMENT_HOLD_ENERGY_KWH/);
+    expect(() =>
+      validateEnv({ ...validEnv, PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: '0' }),
+    ).toThrow(/PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES/);
   });
 
   it('accepts an ML service URL without the trailing slash', () => {
