@@ -24,7 +24,7 @@ export class ListOrganizationSessionsController {
   @ApiOperation({
     operationId: 'listOrganizationSessions',
     summary:
-      'List the sessions of the organization (managers only), filtered by month, unit and status',
+      'List the sessions of the organization (managers only), filtered by month, unit, status, charge point and anomaly flag',
   })
   @ApiOkResponse({ type: OrganizationSessionPageDto })
   @ApiBadRequestResponse({ description: 'Invalid filters' })

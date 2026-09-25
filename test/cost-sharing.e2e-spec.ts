@@ -29,6 +29,7 @@ interface SessionFixture {
   idleFeeCents?: number;
   allocatedPowerKw?: number;
   anomalyScore?: string;
+  isAnomaly?: boolean;
 }
 
 const NOW = new Date('2026-10-07T12:00:00.000-03:00');
@@ -40,6 +41,8 @@ describe('Cost sharing (e2e)', () => {
   const run = randomUUID();
   const emails: string[] = [];
   let organizationId: string;
+  let privatePointId: string;
+  let visitorsPointId: string;
   let manager: Session;
   let tenantA: Session;
   let tenantB: Session;
@@ -94,6 +97,7 @@ describe('Cost sharing (e2e)', () => {
         idleMinutes: idleFeeCents / 25,
         totalCents: fixture.energyCostCents + idleFeeCents,
         anomalyScore: fixture.anomalyScore ?? null,
+        isAnomaly: fixture.isAnomaly ?? null,
       },
     });
   }
@@ -158,6 +162,8 @@ describe('Cost sharing (e2e)', () => {
       });
     const privatePoint = await point('L1-01', 'PRIVATE', 7);
     const visitorsPoint = await point('L2-01', 'COMMERCIAL', 22);
+    privatePointId = privatePoint.id;
+    visitorsPointId = visitorsPoint.id;
 
     const base = { pointId: privatePoint.id, regime: 'PRIVATE' as const };
     await createSession({
@@ -192,6 +198,7 @@ describe('Cost sharing (e2e)', () => {
       energyCostCents: 872,
       idleFeeCents: 3000,
       anomalyScore: '0.9132',
+      isAnomaly: true,
     });
     await createSession({
       ...base,
@@ -214,6 +221,8 @@ describe('Cost sharing (e2e)', () => {
       energyKwh: '7.042',
       energyCostCents: 2000,
       allocatedPowerKw: 22,
+      anomalyScore: '0.6207',
+      isAnomaly: true,
     });
     await createSession({
       ...base,
@@ -224,6 +233,8 @@ describe('Cost sharing (e2e)', () => {
       chargingEndedAt: '2026-09-01T02:00',
       energyKwh: '7.000',
       energyCostCents: 623,
+      anomalyScore: '0.1204',
+      isAnomaly: false,
     });
   });
 
@@ -248,6 +259,8 @@ describe('Cost sharing (e2e)', () => {
     await get(path('statements?month=2026-13'), manager).expect(400);
     await get(path('statements?month=08-2026'), manager).expect(400);
     await get(path('sessions?status=PARKED'), manager).expect(400);
+    await get(path('sessions?anomaly=yes'), manager).expect(400);
+    await get(path('sessions?chargePointId=L1-01'), manager).expect(400);
   });
 
   it('builds the monthly statement per unit', async () => {
@@ -367,6 +380,65 @@ describe('Cost sharing (e2e)', () => {
     );
     expect(all.body).toMatchObject({ total: 6, page: 2, pageSize: 4 });
     expect(all.body.items).toHaveLength(2);
+  });
+
+  it('filters the sessions by charge point and anomaly flag', async () => {
+    const visitors = await get(
+      path(`sessions?chargePointId=${visitorsPointId}`),
+      manager,
+    ).expect(200);
+    expect(visitors.body.total).toBe(1);
+    expect(visitors.body.items[0]).toMatchObject({
+      regime: 'COMMERCIAL',
+      chargePoint: { id: visitorsPointId, code: 'L2-01' },
+    });
+
+    const flagged = await get(path('sessions?anomaly=true'), manager).expect(
+      200,
+    );
+    expect(flagged.body.total).toBe(2);
+    expect(
+      flagged.body.items.map(
+        (item: { anomalyScore: number; isAnomaly: boolean }) => [
+          item.anomalyScore,
+          item.isAnomaly,
+        ],
+      ),
+    ).toEqual([
+      [0.6207, true],
+      [0.9132, true],
+    ]);
+
+    const notFlagged = await get(
+      path('sessions?anomaly=false'),
+      manager,
+    ).expect(200);
+    expect(notFlagged.body.total).toBe(4);
+    expect(
+      notFlagged.body.items.every(
+        (item: { isAnomaly: boolean | null }) => item.isAnomaly !== true,
+      ),
+    ).toBe(true);
+
+    const combined = await get(
+      path(
+        `sessions?month=2026-08&chargePointId=${privatePointId}&anomaly=true&page=1&pageSize=1`,
+      ),
+      manager,
+    ).expect(200);
+    expect(combined.body).toMatchObject({ total: 1, page: 1, pageSize: 1 });
+    expect(combined.body.items).toEqual([
+      expect.objectContaining({ unitLabel: 'B · 42', anomalyScore: 0.9132 }),
+    ]);
+
+    const secondPage = await get(
+      path('sessions?anomaly=true&page=2&pageSize=1'),
+      manager,
+    ).expect(200);
+    expect(secondPage.body).toMatchObject({ total: 2, page: 2, pageSize: 1 });
+    expect(secondPage.body.items).toEqual([
+      expect.objectContaining({ anomalyScore: 0.9132 }),
+    ]);
   });
 
   it('summarises the month and the electrical capacity', async () => {

@@ -21,6 +21,17 @@ function startedIn(range: MonthRange): Prisma.DateTimeFilter {
   return { gte: range.start, lt: range.end };
 }
 
+function anomalyFilter(
+  anomaly: boolean | undefined,
+): Prisma.ChargingSessionWhereInput {
+  if (anomaly === undefined) {
+    return {};
+  }
+  return anomaly
+    ? { isAnomaly: true }
+    : { OR: [{ isAnomaly: false }, { isAnomaly: null }] };
+}
+
 @Injectable()
 export class CostSharingPrismaRepository extends CostSharingRepository {
   constructor(private readonly prisma: PrismaService) {
@@ -86,6 +97,10 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
       ...(filters.range ? { startedAt: startedIn(filters.range) } : {}),
       ...(filters.unitLabel ? { unitLabel: filters.unitLabel } : {}),
       ...(filters.status ? { status: filters.status } : {}),
+      ...(filters.chargePointId
+        ? { chargePointId: filters.chargePointId }
+        : {}),
+      ...anomalyFilter(filters.anomaly),
     };
     const [sessions, total] = await this.prisma.$transaction([
       this.prisma.chargingSession.findMany({

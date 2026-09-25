@@ -25,6 +25,8 @@ export class ListOrganizationSessionsService {
         range: query.month ? resolveMonth(query.month, this.clock.now()) : null,
         unitLabel: query.unit || undefined,
         status: query.status,
+        chargePointId: query.chargePointId,
+        anomaly: query.anomaly,
       },
       { skip: (query.page - 1) * query.pageSize, take: query.pageSize },
     );

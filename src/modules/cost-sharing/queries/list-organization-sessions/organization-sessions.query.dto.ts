@@ -1,15 +1,17 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsOptional,
   IsString,
+  IsUUID,
   Matches,
   MaxLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../../common/pagination/pagination.query.dto.js';
 import { ChargingSessionStatus } from '../../../../generated/prisma/enums.js';
-import { trimString } from '../../../auth/dto/transforms.js';
+import { parseBooleanQuery, trimString } from '../../../auth/dto/transforms.js';
 import { MONTH_PATTERN } from '../get-monthly-statement/month.query.dto.js';
 
 export class OrganizationSessionsQueryDto extends PaginationQueryDto {
@@ -32,4 +34,19 @@ export class OrganizationSessionsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsIn(Object.values(ChargingSessionStatus))
   status?: ChargingSessionStatus;
+
+  @ApiPropertyOptional({ format: 'uuid' })
+  @IsOptional()
+  @IsUUID()
+  chargePointId?: string;
+
+  @ApiPropertyOptional({
+    type: Boolean,
+    description:
+      'true keeps only the sessions flagged as anomalous; false keeps the ones not flagged (including the unscored)',
+  })
+  @IsOptional()
+  @Transform(parseBooleanQuery)
+  @IsBoolean()
+  anomaly?: boolean;
 }
