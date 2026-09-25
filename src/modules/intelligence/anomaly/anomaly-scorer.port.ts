@@ -1,13 +1,11 @@
 export interface SessionFeatures {
   chargePointType: 'PRIVATE' | 'COMMERCIAL';
-  hour: number;
+  startHour: number;
   dayOfWeek: number;
   energyKwh: number;
-  chargingMinutes: number;
+  durationMinutes: number;
   idleMinutes: number;
   averagePowerKw: number;
-  allocatedPowerKw: number;
-  totalCents: number;
 }
 
 export interface AnomalyScore {

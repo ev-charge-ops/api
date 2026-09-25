@@ -45,14 +45,12 @@ describe('sessionFeatures', () => {
 
     expect(sessionFeatures(session.toProps())).toEqual({
       chargePointType: 'PRIVATE',
-      hour: 22,
-      dayOfWeek: 3,
+      startHour: 22,
+      dayOfWeek: 2,
       energyKwh: 12,
-      chargingMinutes: 120,
-      idleMinutes: 12,
-      averagePowerKw: 6,
-      allocatedPowerKw: 7,
-      totalCents: 1068 + 300,
+      durationMinutes: 142,
+      idleMinutes: 22,
+      averagePowerKw: 5.07,
     });
   });
 });

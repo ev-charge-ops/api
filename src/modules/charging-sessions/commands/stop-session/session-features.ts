@@ -1,29 +1,46 @@
 import { toSaoPauloTime } from '../../../../common/time/sao-paulo-time.js';
 import type { SessionFeatures } from '../../../intelligence/anomaly/anomaly-scorer.port.js';
-import type { ChargingSessionProps } from '../../domain/charging-session.entity.js';
+import { mlDayOfWeek } from '../../../intelligence/ml/ml-http-client.js';
 import { sessionMinutesBetween } from '../../domain/session-fees.js';
 
-export function sessionFeatures(props: ChargingSessionProps): SessionFeatures {
-  const local = toSaoPauloTime(props.startedAt);
+export interface SessionTimeline {
+  regime: 'PRIVATE' | 'COMMERCIAL';
+  startedAt: Date;
+  chargingEndedAt: Date | null;
+  endedAt: Date | null;
+  energyWh: number;
+  timeScale: number;
+}
+
+export function sessionFeatures(session: SessionTimeline): SessionFeatures {
+  const local = toSaoPauloTime(session.startedAt);
+  const chargingEnd =
+    session.chargingEndedAt ?? session.endedAt ?? session.startedAt;
   const chargingMinutes = sessionMinutesBetween(
-    props.startedAt,
-    props.chargingEndedAt ?? props.endedAt ?? props.startedAt,
-    props.timeScale,
+    session.startedAt,
+    chargingEnd,
+    session.timeScale,
   );
-  const energyKwh = props.energyWh / 1000;
+  const durationMinutes = Math.max(
+    chargingMinutes,
+    sessionMinutesBetween(
+      session.startedAt,
+      session.endedAt ?? chargingEnd,
+      session.timeScale,
+    ),
+  );
+  const energyKwh = session.energyWh / 1000;
   const averagePowerKw =
-    chargingMinutes > 0
-      ? Math.round((energyKwh / (chargingMinutes / 60)) * 100) / 100
+    durationMinutes > 0
+      ? Math.round((energyKwh / (durationMinutes / 60)) * 100) / 100
       : 0;
   return {
-    chargePointType: props.regime,
-    hour: local.hour,
-    dayOfWeek: local.dayOfWeek,
+    chargePointType: session.regime,
+    startHour: local.hour,
+    dayOfWeek: mlDayOfWeek(local.dayOfWeek),
     energyKwh,
-    chargingMinutes,
-    idleMinutes: props.idleMinutes,
+    durationMinutes,
+    idleMinutes: durationMinutes - chargingMinutes,
     averagePowerKw,
-    allocatedPowerKw: props.allocatedPowerKw,
-    totalCents: props.totalCents,
   };
 }
