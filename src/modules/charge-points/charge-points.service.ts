@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Clock } from '../../common/clock/clock.js';
-import type { Organization, Tariff } from '../../generated/prisma/client.js';
+import type {
+  ChargePoint,
+  Organization,
+  Tariff,
+} from '../../generated/prisma/client.js';
 import type { ChargePointType } from '../../generated/prisma/enums.js';
 import {
   type DemandFactor,
@@ -41,8 +45,23 @@ export interface ChargePointQuote {
   capacity: SiteCapacity | null;
 }
 
-interface PricedPoint {
-  point: ChargePointRecord;
+export interface OrganizationPointPricing {
+  id: string;
+  code: string;
+  name: string;
+  type: ChargePointType;
+  maxPowerKw: number;
+  status: ChargePointStatus;
+  pricing: ChargePointPricingDto | null;
+}
+
+type PriceablePoint = Pick<
+  ChargePoint,
+  'id' | 'organizationId' | 'isOnline' | 'type'
+>;
+
+interface PricedPoint<T extends PriceablePoint = ChargePointRecord> {
+  point: T;
   status: ChargePointStatus;
   tariff: Tariff | null;
   demand: DemandFactor;
@@ -65,6 +84,22 @@ export class ChargePointsService {
     });
     const priced = await this.price(points, this.clock.now());
     return priced.map(toResponse);
+  }
+
+  async listOrganizationPricing(
+    organizationId: string,
+  ): Promise<OrganizationPointPricing[]> {
+    const points = await this.repository.findByOrganization(organizationId);
+    const priced = await this.price(points, this.clock.now());
+    return priced.map(({ point, status, tariff, demand }) => ({
+      id: point.id,
+      code: point.code,
+      name: point.name,
+      type: point.type,
+      maxPowerKw: point.maxPowerKw.toNumber(),
+      status,
+      pricing: toPricing(point.type, tariff, demand),
+    }));
   }
 
   async get(userId: string, id: string): Promise<ChargePointResponseDto> {
@@ -115,10 +150,10 @@ export class ChargePointsService {
     return priced;
   }
 
-  private async price(
-    points: ChargePointRecord[],
+  private async price<T extends PriceablePoint>(
+    points: T[],
     at: Date,
-  ): Promise<PricedPoint[]> {
+  ): Promise<PricedPoint<T>[]> {
     if (points.length === 0) {
       return [];
     }
@@ -195,21 +230,30 @@ function toResponse({
     status,
     isMember: point.organization.memberships.length > 0,
     charger: charger ? ChargerResponseDto.fromEntity(charger) : null,
-    pricing: tariff
-      ? Object.assign(new ChargePointPricingDto(), {
-          pricePerKwhCents: pricePerKwhCents(point.type, tariff, demand.factor),
-          utilityRateCents: tariff.utilityRateCents,
-          baseRateCents: tariff.baseRateCents,
-          demandFactor: demand.factor,
-          demandLevel: demand.level,
-          demandFactorSource: demand.source,
-          demandModelVersion: demand.modelVersion,
-          demandFactorApplied: appliesDemandFactor(point.type),
-          idleFeeCentsPerMinute: tariff.idleFeeCentsPerMinute,
-          idleFeeCapCents: tariff.idleFeeCapCents,
-          gracePeriodMinutes: tariff.gracePeriodMinutes,
-        })
-      : null,
+    pricing: toPricing(point.type, tariff, demand),
+  });
+}
+
+function toPricing(
+  type: ChargePointType,
+  tariff: Tariff | null,
+  demand: DemandFactor,
+): ChargePointPricingDto | null {
+  if (!tariff) {
+    return null;
+  }
+  return Object.assign(new ChargePointPricingDto(), {
+    pricePerKwhCents: pricePerKwhCents(type, tariff, demand.factor),
+    utilityRateCents: tariff.utilityRateCents,
+    baseRateCents: tariff.baseRateCents,
+    demandFactor: demand.factor,
+    demandLevel: demand.level,
+    demandFactorSource: demand.source,
+    demandModelVersion: demand.modelVersion,
+    demandFactorApplied: appliesDemandFactor(type),
+    idleFeeCentsPerMinute: tariff.idleFeeCentsPerMinute,
+    idleFeeCapCents: tariff.idleFeeCapCents,
+    gracePeriodMinutes: tariff.gracePeriodMinutes,
   });
 }
 

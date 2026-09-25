@@ -472,7 +472,85 @@ describe('Cost sharing (e2e)', () => {
         { week: 4, energyKwh: 0 },
         { week: 5, energyKwh: 0 },
       ],
+      anomaliesCount: 2,
+      recentAnomalies: [
+        {
+          sessionId: expect.any(String),
+          status: 'CLOSED',
+          regime: 'COMMERCIAL',
+          chargePoint: {
+            id: visitorsPointId,
+            code: 'L2-01',
+            name: 'Vaga L2-01',
+          },
+          driver: { id: visitor.id, name: 'Vera' },
+          unitLabel: null,
+          startedAt: '2026-08-11T00:00:00.000Z',
+          endedAt: '2026-08-11T00:20:00.000Z',
+          energyKwh: 7.042,
+          idleMinutes: 0,
+          totalCents: 2000,
+          anomalyScore: 0.6207,
+          anomalyModelVersion: null,
+        },
+        expect.objectContaining({
+          chargePoint: {
+            id: privatePointId,
+            code: 'L1-01',
+            name: 'Vaga L1-01',
+          },
+          driver: { id: tenantB.id, name: 'Bruno' },
+          unitLabel: 'B · 42',
+          anomalyScore: 0.9132,
+        }),
+      ],
+      chargePoints: [
+        {
+          id: privatePointId,
+          code: 'L1-01',
+          name: 'Vaga L1-01',
+          type: 'PRIVATE',
+          maxPowerKw: 7,
+          status: 'AVAILABLE',
+          pricing: {
+            pricePerKwhCents: 89,
+            utilityRateCents: 89,
+            baseRateCents: null,
+            demandFactor: 1,
+            demandLevel: 'NORMAL',
+            demandFactorSource: 'RULE',
+            demandModelVersion: null,
+            demandFactorApplied: false,
+            idleFeeCentsPerMinute: 25,
+            idleFeeCapCents: 3000,
+            gracePeriodMinutes: 10,
+          },
+        },
+        expect.objectContaining({
+          id: visitorsPointId,
+          type: 'COMMERCIAL',
+          maxPowerKw: 22,
+          pricing: expect.objectContaining({
+            pricePerKwhCents: 89,
+            demandFactorApplied: true,
+          }),
+        }),
+      ],
     });
+  });
+
+  it('lists the latest anomalies up to the end of the month', async () => {
+    const july = await get(path('overview?month=2026-07'), manager).expect(200);
+    expect(july.body).toMatchObject({ anomaliesCount: 0, recentAnomalies: [] });
+    expect(july.body.chargePoints).toHaveLength(2);
+
+    const october = await get(path('overview'), manager).expect(200);
+    expect(october.body.anomaliesCount).toBe(0);
+    expect(
+      october.body.recentAnomalies.map(
+        (item: { anomalyScore: number }) => item.anomalyScore,
+      ),
+    ).toEqual([0.6207, 0.9132]);
   });
 
   it('defaults to the current month', async () => {

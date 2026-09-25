@@ -60,6 +60,13 @@ export class ChargePointsRepository {
     });
   }
 
+  findByOrganization(organizationId: string): Promise<ChargePoint[]> {
+    return this.prisma.chargePoint.findMany({
+      where: { organizationId },
+      orderBy: { code: 'asc' },
+    });
+  }
+
   findSitePoints(organizationIds: string[]): Promise<SitePoint[]> {
     return this.prisma.chargePoint.findMany({
       where: { organizationId: { in: organizationIds } },
