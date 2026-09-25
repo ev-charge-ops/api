@@ -1,6 +1,10 @@
 import { Logger } from '@nestjs/common';
 import { toSaoPauloTime } from '../../../common/time/sao-paulo-time.js';
-import { isRecord, type MlHttpClient } from '../ml/ml-http-client.js';
+import {
+  isRecord,
+  mlDayOfWeek,
+  type MlHttpClient,
+} from '../ml/ml-http-client.js';
 import {
   type DemandFactor,
   type DemandFactorInput,
@@ -39,7 +43,7 @@ export class MlDemandFactorProvider extends DemandFactorProvider {
     try {
       const body = await this.client.post('/demand-factor', {
         hour: local.hour,
-        dayOfWeek: local.dayOfWeek,
+        dayOfWeek: mlDayOfWeek(local.dayOfWeek),
         occupancyRatio: input.occupancyRatio,
         queueLength: input.queueLength,
         chargePointType: input.chargePointType,

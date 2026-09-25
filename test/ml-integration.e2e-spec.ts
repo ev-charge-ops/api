@@ -174,7 +174,7 @@ describe('ML integration (e2e)', () => {
     });
     expect(calls.find((call) => call.path === '/demand-factor')?.body).toEqual({
       hour: 19,
-      dayOfWeek: 3,
+      dayOfWeek: 2,
       occupancyRatio: 0,
       queueLength: 0,
       chargePointType: 'COMMERCIAL',
@@ -195,10 +195,11 @@ describe('ML integration (e2e)', () => {
       calls.find((call) => call.path === '/anomaly-score')?.body,
     ).toMatchObject({
       chargePointType: 'COMMERCIAL',
-      hour: 19,
-      chargingMinutes: 30,
+      startHour: 19,
+      dayOfWeek: 2,
+      durationMinutes: 30,
+      idleMinutes: 0,
       energyKwh: 11,
-      allocatedPowerKw: 22,
     });
     const stored = await prisma.chargingSession.findUniqueOrThrow({
       where: { id: started.body.id },

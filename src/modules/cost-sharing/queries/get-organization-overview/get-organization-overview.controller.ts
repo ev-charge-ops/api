@@ -24,7 +24,7 @@ export class GetOrganizationOverviewController {
   @ApiOperation({
     operationId: 'getOrganizationOverview',
     summary:
-      'Monthly indicators of the organization (managers only): energy, sessions, cost-sharing total and electrical capacity',
+      'Monthly indicators of the organization (managers only): energy, sessions, cost-sharing total, electrical capacity, recent anomalies and current price per point',
   })
   @ApiOkResponse({ type: OrganizationOverviewResponseDto })
   @ApiBadRequestResponse({ description: 'Invalid month' })

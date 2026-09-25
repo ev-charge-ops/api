@@ -15,20 +15,25 @@ import {
   roundTo,
   UPGRADE_ALERT_THRESHOLD_PERCENT,
 } from '../../domain/demand-profile.js';
+import { ChargePointsService } from '../../../charge-points/charge-points.service.js';
 import { GetMonthlyStatementService } from '../get-monthly-statement/get-monthly-statement.service.js';
 import {
   OrganizationOverviewResponseDto,
+  OverviewChargePointDto,
+  RecentAnomalyDto,
   type WeeklyEnergyDto,
 } from './organization-overview.response.dto.js';
 
 const WH_PER_KWH = 1000;
 const DAYS_PER_WEEK = 7;
+export const RECENT_ANOMALIES_LIMIT = 5;
 
 @Injectable()
 export class GetOrganizationOverviewService {
   constructor(
     private readonly repository: CostSharingRepository,
     private readonly statements: GetMonthlyStatementService,
+    private readonly chargePoints: ChargePointsService,
     private readonly clock: Clock,
   ) {}
 
@@ -46,6 +51,13 @@ export class GetOrganizationOverviewService {
       range,
     );
     const site = await this.repository.findSiteDemand(organizationId);
+    const recentAnomalies = await this.repository.findRecentAnomalies(
+      organizationId,
+      range.end,
+      RECENT_ANOMALIES_LIMIT,
+    );
+    const points =
+      await this.chargePoints.listOrganizationPricing(organizationId);
 
     const contracted = site.contractedDemandKw ?? 0;
     const reserve = site.commonAreaReserveKw ?? 0;
@@ -88,6 +100,16 @@ export class GetOrganizationOverviewService {
           averagePeakUtilizationPercent > UPGRADE_ALERT_THRESHOLD_PERCENT,
       },
       energyByWeek: energyByWeek(sessions, range.end),
+      anomaliesCount: sessions.filter((item) => item.isAnomaly === true).length,
+      recentAnomalies: recentAnomalies.map(({ energyWh, ...row }) =>
+        Object.assign(new RecentAnomalyDto(), {
+          ...row,
+          energyKwh: energyWh / WH_PER_KWH,
+        }),
+      ),
+      chargePoints: points.map((point) =>
+        Object.assign(new OverviewChargePointDto(), point),
+      ),
     });
   }
 }

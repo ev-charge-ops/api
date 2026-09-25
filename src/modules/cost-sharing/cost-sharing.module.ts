@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ChargePointsModule } from '../charge-points/charge-points.module.js';
 import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { CostSharingPrismaRepository } from './database/cost-sharing.prisma-repository.js';
 import { CostSharingRepository } from './database/cost-sharing.repository.port.js';
@@ -11,7 +12,7 @@ import { ListOrganizationSessionsController } from './queries/list-organization-
 import { ListOrganizationSessionsService } from './queries/list-organization-sessions/list-organization-sessions.service.js';
 
 @Module({
-  imports: [OrganizationsModule],
+  imports: [ChargePointsModule, OrganizationsModule],
   controllers: [
     ExportMonthlyStatementCsvController,
     GetMonthlyStatementController,

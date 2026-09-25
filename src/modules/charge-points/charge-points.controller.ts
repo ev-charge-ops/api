@@ -4,8 +4,10 @@ import {
   HttpStatus,
   Param,
   ParseUUIDPipe,
+  Query,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
   ApiBearerAuth,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -17,6 +19,7 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.js';
 import { ChargePointsService } from './charge-points.service.js';
 import { ChargePointResponseDto } from './dto/charge-point.response.dto.js';
+import { ListChargePointsQueryDto } from './dto/list-charge-points.query.dto.js';
 
 @ApiTags('charge-points')
 @ApiBearerAuth()
@@ -29,13 +32,15 @@ export class ChargePointsController {
   @ApiOperation({
     operationId: 'listChargePoints',
     summary:
-      'List the charge points of the organizations of the user and the public commercial ones, with the current price',
+      'List the charge points of the organizations of the user and the public commercial ones, with the current price, optionally from a single organization',
   })
   @ApiOkResponse({ type: [ChargePointResponseDto] })
+  @ApiBadRequestResponse({ description: 'Invalid filters' })
   listChargePoints(
     @CurrentUser() user: AuthenticatedUser,
+    @Query() query: ListChargePointsQueryDto,
   ): Promise<ChargePointResponseDto[]> {
-    return this.chargePoints.list(user.id);
+    return this.chargePoints.list(user.id, query.organizationId);
   }
 
   @Get(':chargePointId')
