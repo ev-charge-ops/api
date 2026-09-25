@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../common/clock/clock.js';
+import { resolveMonth } from '../../../../common/time/month.query.dto.js';
 import {
   formatMonth,
   type MonthRange,
@@ -10,7 +11,6 @@ import {
   type MonthlyStatement,
   type StatementAmounts,
 } from '../../domain/monthly-statement.js';
-import { resolveMonth } from './month.query.dto.js';
 import { MonthlyStatementResponseDto } from './monthly-statement.response.dto.js';
 
 export interface ResolvedStatement {

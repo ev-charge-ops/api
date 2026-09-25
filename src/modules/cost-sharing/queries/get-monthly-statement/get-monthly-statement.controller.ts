@@ -7,9 +7,9 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { MonthQueryDto } from '../../../../common/time/month.query.dto.js';
 import { RequireOrganizationRole } from '../../../organizations/guards/require-organization-role.decorator.js';
 import { GetMonthlyStatementService } from './get-monthly-statement.service.js';
-import { MonthQueryDto } from './month.query.dto.js';
 import { MonthlyStatementResponseDto } from './monthly-statement.response.dto.js';
 
 @ApiTags('cost-sharing')
