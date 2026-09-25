@@ -1,3 +1,4 @@
+import type { MonthRange } from '../../../common/time/sao-paulo-time.js';
 import type {
   ChargingSession,
   MeterSample,
@@ -29,6 +30,7 @@ export abstract class ChargingSessionRepository {
   abstract listByUser(
     userId: string,
     page: { skip: number; take: number },
+    range?: MonthRange,
   ): Promise<SessionPage>;
 
   abstract chargingPowerKw(organizationId: string): Promise<number>;
