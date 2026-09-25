@@ -20,6 +20,10 @@ export interface SessionPage {
 export abstract class ChargingSessionRepository {
   abstract findById(id: string): Promise<ChargingSession | null>;
 
+  abstract findByPaymentIntentId(
+    intentId: string,
+  ): Promise<ChargingSession | null>;
+
   abstract findOpenByUser(userId: string): Promise<ChargingSession | null>;
 
   abstract listByUser(

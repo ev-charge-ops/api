@@ -50,6 +50,16 @@ export const envSchema = z
       .union([z.literal(''), z.url()])
       .default('')
       .transform((value) => value.replace(/\/+$/, '')),
+    STRIPE_SECRET_KEY: z.string().trim().default(''),
+    STRIPE_WEBHOOK_SECRET: z.string().trim().default(''),
+    STRIPE_PUBLISHABLE_KEY: z.string().trim().default(''),
+    PAYMENT_HOLD_ENERGY_KWH: z.coerce.number().positive().max(500).default(60),
+    PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(1440)
+      .default(15),
   })
   .superRefine((env, context) => {
     if (env.MAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {

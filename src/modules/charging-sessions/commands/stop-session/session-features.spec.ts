@@ -31,7 +31,11 @@ describe('sessionFeatures', () => {
       gracePeriodMinutes: 10,
       startedAt: STARTED_AT,
     });
-    session.activate('tx-1', { batteryCapacityWh: 50_000, socPercent: 42 });
+    session.activate(
+      'tx-1',
+      { batteryCapacityWh: 50_000, socPercent: 42 },
+      STARTED_AT,
+    );
     session.recordTelemetry(
       { at: at(120), energyWh: 12_000, powerKw: 0, socPercent: 66 },
       at(120),

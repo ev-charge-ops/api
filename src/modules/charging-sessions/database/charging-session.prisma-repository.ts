@@ -5,6 +5,7 @@ import {
   readingToSample,
   toCreateData,
   toDomain,
+  toPaymentData,
   toReadingData,
   toStateData,
 } from '../charging-session.mapper.js';
@@ -31,6 +32,16 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
   async findById(id: string): Promise<ChargingSession | null> {
     const record = await this.prisma.chargingSession.findUnique({
       where: { id },
+      include: SESSION_INCLUDE,
+    });
+    return record ? toDomain(record) : null;
+  }
+
+  async findByPaymentIntentId(
+    intentId: string,
+  ): Promise<ChargingSession | null> {
+    const record = await this.prisma.chargingSession.findFirst({
+      where: { payment: { stripePaymentIntentId: intentId } },
       include: SESSION_INCLUDE,
     });
     return record ? toDomain(record) : null;
@@ -67,7 +78,13 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
     const result = await this.prisma.chargingSession.aggregate({
       where: {
         organizationId,
-        status: { in: [SessionStatus.PENDING, SessionStatus.ACTIVE] },
+        status: {
+          in: [
+            SessionStatus.AWAITING_PAYMENT,
+            SessionStatus.PENDING,
+            SessionStatus.ACTIVE,
+          ],
+        },
       },
       _sum: { allocatedPowerKw: true },
     });
@@ -116,6 +133,14 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
       });
       if (count === 0) {
         return false;
+      }
+      if (props.payment) {
+        const payment = toPaymentData(props.payment);
+        await tx.payment.upsert({
+          where: { sessionId: props.id },
+          create: { sessionId: props.id, ...payment },
+          update: payment,
+        });
       }
       if (readings.length > 0) {
         await tx.meterReading.createMany({

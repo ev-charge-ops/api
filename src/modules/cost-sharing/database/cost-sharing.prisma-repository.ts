@@ -159,11 +159,16 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
         this.prisma.chargingSession.count({
           where: {
             organizationId,
-            status: { in: ['PENDING', 'ACTIVE', 'GRACE', 'IDLE'] },
+            status: {
+              in: ['AWAITING_PAYMENT', 'PENDING', 'ACTIVE', 'GRACE', 'IDLE'],
+            },
           },
         }),
         this.prisma.chargingSession.aggregate({
-          where: { organizationId, status: { in: ['PENDING', 'ACTIVE'] } },
+          where: {
+            organizationId,
+            status: { in: ['AWAITING_PAYMENT', 'PENDING', 'ACTIVE'] },
+          },
           _sum: { allocatedPowerKw: true },
         }),
       ]);

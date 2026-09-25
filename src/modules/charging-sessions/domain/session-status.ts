@@ -1,4 +1,5 @@
 export const SessionStatus = {
+  AWAITING_PAYMENT: 'AWAITING_PAYMENT',
   PENDING: 'PENDING',
   ACTIVE: 'ACTIVE',
   GRACE: 'GRACE',
@@ -10,6 +11,7 @@ export const SessionStatus = {
 export type SessionStatus = (typeof SessionStatus)[keyof typeof SessionStatus];
 
 export const OPEN_SESSION_STATUSES: SessionStatus[] = [
+  SessionStatus.AWAITING_PAYMENT,
   SessionStatus.PENDING,
   SessionStatus.ACTIVE,
   SessionStatus.GRACE,
