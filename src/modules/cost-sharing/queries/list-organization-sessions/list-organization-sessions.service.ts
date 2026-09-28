@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../common/clock/clock.js';
+import { resolveMonth } from '../../../../common/time/month.query.dto.js';
 import { CostSharingRepository } from '../../database/cost-sharing.repository.port.js';
-import { resolveMonth } from '../get-monthly-statement/month.query.dto.js';
 import {
   OrganizationSessionDto,
   OrganizationSessionPageDto,

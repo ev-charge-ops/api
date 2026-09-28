@@ -4,7 +4,7 @@ import {
   type MonthRange,
   saoPauloMonth,
   saoPauloMonthOf,
-} from '../../../../common/time/sao-paulo-time.js';
+} from './sao-paulo-time.js';
 
 export const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 
