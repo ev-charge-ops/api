@@ -13,6 +13,7 @@ import { CostSharingModule } from './modules/cost-sharing/cost-sharing.module.js
 import { InvitesModule } from './modules/invites/invites.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
+import { PrivacyModule } from './modules/privacy/privacy.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 
 @Module({
@@ -29,6 +30,7 @@ import { UsersModule } from './modules/users/users.module.js';
     ChargePointsModule,
     ChargingSessionsModule,
     CostSharingModule,
+    PrivacyModule,
   ],
   controllers: [AppController],
   providers: [
