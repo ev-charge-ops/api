@@ -81,6 +81,21 @@ enum DeletionRequestStatus {
   COMPLETED
 }
 
+enum PushPlatform {
+  IOS
+  ANDROID
+}
+
+enum NotificationType {
+  SESSION_ACTIVE
+  CHARGING_COMPLETE
+  IDLE_FEE_STARTED
+  PAYMENT_CAPTURED
+  PAYMENT_FAILED
+  SESSION_INTERRUPTED
+  ORGANIZATION_INVITE
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -106,6 +121,8 @@ model User {
   sessions         ChargingSession[]
   consentRecords   ConsentRecord[]
   deletionRequests DeletionRequest[]
+  pushTokens       PushToken[]
+  notifications    Notification[]
 }
 
 model UserIdentity {
@@ -358,4 +375,32 @@ model DeletionRequest {
   processedAt DateTime?
 
   @@index([userId, status])
+}
+
+model PushToken {
+  id        String       @id @default(uuid())
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String       @unique
+  platform  PushPlatform
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@index([userId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  data      Json             @default("{}")
+  dedupeKey String?          @unique
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
