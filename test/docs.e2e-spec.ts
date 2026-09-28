@@ -44,6 +44,8 @@ describe('OpenAPI docs (e2e)', () => {
       'GET /charge-points listChargePoints',
       'GET /charge-points/{chargePointId} getChargePoint',
       'GET /invites/{token} getInvitePreview',
+      'GET /me/consents getMyConsents',
+      'GET /me/data-export exportMyData',
       'GET /me/organizations listMyOrganizations',
       'GET /organizations/{organizationId}/invites listInvites',
       'GET /organizations/{organizationId}/members listOrganizationMembers',
@@ -71,6 +73,7 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /auth/register register',
       'POST /invites/{token}/accept acceptInvite',
       'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
+      'POST /me/deletion-request requestAccountDeletion',
       'POST /organizations/{organizationId}/invites createInvite',
       'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
       'POST /payments/stripe/webhook handleStripeWebhook',
@@ -78,6 +81,7 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /sessions/{sessionId}/payment/confirm confirmSessionPayment',
       'POST /sessions/{sessionId}/payment/sheet createSessionPaymentSheet',
       'POST /sessions/{sessionId}/stop stopSession',
+      'PUT /me/consents updateMyConsents',
     ]);
     expect(response.body.components.securitySchemes).toHaveProperty('bearer');
     expect(response.body.components.schemas.Role).toEqual({
