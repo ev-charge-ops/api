@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { Clock } from '../../common/clock/clock.js';
 import { formatBrl } from '../../common/format/brl.js';
 import type { NotificationType } from '../../generated/prisma/enums.js';
+import { ChargePointQueue } from '../charge-points/queue/charge-point-queue.js';
 import { formatDuration } from '../mail/templates/format-duration.js';
 import type {
   NewNotification,
@@ -9,7 +11,7 @@ import type {
 import { Notifier } from '../notifications/notifier.js';
 import type { ChargingSession } from './domain/charging-session.entity.js';
 import { PaymentStatus } from './domain/session-payment.js';
-import { SessionStatus } from './domain/session-status.js';
+import { isOpenStatus, SessionStatus } from './domain/session-status.js';
 
 interface SessionMessage {
   type: NotificationType;
@@ -123,7 +125,11 @@ export function snapshotOf(session: ChargingSession): SessionSnapshot {
 
 @Injectable()
 export class SessionEvents {
-  constructor(private readonly notifier: Notifier) {}
+  constructor(
+    private readonly notifier: Notifier,
+    private readonly queue: ChargePointQueue,
+    private readonly clock: Clock,
+  ) {}
 
   async changed(
     before: SessionSnapshot | null,
@@ -138,6 +144,12 @@ export class SessionEvents {
     }
     for (const notification of sessionNotifications(session)) {
       await this.notifier.notify(notification);
+    }
+    if ((!before || isOpenStatus(before.status)) && !session.isOpen) {
+      await this.queue.advance(
+        session.toProps().chargePointId,
+        this.clock.now(),
+      );
     }
   }
 }
