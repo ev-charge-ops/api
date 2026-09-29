@@ -25,6 +25,7 @@ import { ListMySessionsController } from './queries/list-my-sessions/list-my-ses
 import { ListMySessionsService } from './queries/list-my-sessions/list-my-sessions.service.js';
 import { SessionEvents } from './session-events.js';
 import { SessionPayments } from './session-payments.js';
+import { SessionProjector } from './session-projector.js';
 import { SessionStarter } from './session-starter.js';
 import { SessionSynchronizer } from './session-synchronizer.js';
 
@@ -55,6 +56,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     SessionEvents,
     SessionStarter,
     SessionPayments,
+    SessionProjector,
     SessionSynchronizer,
     StartSessionService,
     StopSessionService,

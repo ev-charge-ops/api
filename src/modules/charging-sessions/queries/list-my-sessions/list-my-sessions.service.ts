@@ -7,6 +7,7 @@ import type { ChargingSession } from '../../domain/charging-session.entity.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
 import type { ListMySessionsQueryDto } from './list-my-sessions.query.dto.js';
 import { SessionPageResponseDto } from './session-page.response.dto.js';
+import { SessionProjector } from '../../session-projector.js';
 
 @Injectable()
 export class ListMySessionsService {
@@ -14,6 +15,7 @@ export class ListMySessionsService {
     private readonly sessions: ChargingSessionRepository,
     private readonly synchronizer: SessionSynchronizer,
     private readonly clock: Clock,
+    private readonly projector: SessionProjector,
   ) {}
 
   async execute(
@@ -31,7 +33,9 @@ export class ListMySessionsService {
       synced.push(await this.synchronizer.sync(session, now));
     }
     return Object.assign(new SessionPageResponseDto(), {
-      items: synced.map(toResponse),
+      items: synced.map((session) =>
+        toResponse(session, this.projector.timelineOf(session)),
+      ),
       total,
       page: query.page,
       pageSize: query.pageSize,

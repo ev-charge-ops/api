@@ -9,6 +9,7 @@ import { PrismaService } from './../src/database/prisma.service.js';
 import {
   MOCK_VEHICLE,
   mockTelemetry,
+  projectedCompletion,
 } from './../src/modules/charger-gateway/adapters/mock-charger.adapter.js';
 import { ChargerGateway } from './../src/modules/charger-gateway/charger-gateway.port.js';
 import { FakePaymentGateway } from './../src/modules/payments/adapters/fake-payment.adapter.js';
@@ -205,6 +206,19 @@ describe('Charging sessions (e2e)', () => {
     );
   });
 
+  function fullChargeAt(startedAt: Date): Date {
+    return projectedCompletion({
+      chargerSerialNumber: 'L1-01',
+      transactionId: 'tx',
+      startedAt,
+      allocatedPowerKw: 7,
+      targetEnergyWh: 29_000,
+      batteryCapacityWh: MOCK_VEHICLE.batteryCapacityWh,
+      initialSocPercent: MOCK_VEHICLE.socPercent,
+      timeScale: SPEED,
+    })!;
+  }
+
   it('reports no active session before charging', async () => {
     const response = await get('/sessions/active', driver).expect(200);
     expect(response.body).toEqual({ session: null });
@@ -235,6 +249,18 @@ describe('Charging sessions (e2e)', () => {
       simulationSpeed: SPEED,
       payment: null,
       paymentSheet: null,
+      chargingEndedAt: null,
+      graceEndsAt: null,
+    });
+    const fullAt = fullChargeAt(PEAK_EVENING);
+    expect(response.body).toMatchObject({
+      projectedChargingEndsAt: fullAt.toISOString(),
+      projectedGraceEndsAt: plusSimulatedMinutes(fullAt, 10).toISOString(),
+      projectedIdleStartsAt: plusSimulatedMinutes(fullAt, 10).toISOString(),
+      projectedIdleFeeCapReachedAt: plusSimulatedMinutes(
+        fullAt,
+        130,
+      ).toISOString(),
     });
     expect(await pointStatus(privatePointId)).toBe('CHARGING');
   });
@@ -269,6 +295,9 @@ describe('Charging sessions (e2e)', () => {
       totalCents: 623,
     });
     expect(response.body.readings).toHaveLength(12);
+    expect(response.body.projectedChargingEndsAt).toBe(
+      fullChargeAt(PEAK_EVENING).toISOString(),
+    );
     expect(response.body.readings[0]).toEqual({
       at: plusSimulatedMinutes(PEAK_EVENING, 5).toISOString(),
       energyKwh: 0.583,
@@ -302,6 +331,8 @@ describe('Charging sessions (e2e)', () => {
       socPercent: 100,
       chargingEndedAt: fullAt.toISOString(),
       graceEndsAt: plusSimulatedMinutes(fullAt, 10).toISOString(),
+      projectedChargingEndsAt: fullAt.toISOString(),
+      projectedGraceEndsAt: plusSimulatedMinutes(fullAt, 10).toISOString(),
       energyCostCents: 2581,
       idleFeeCents: 0,
       totalCents: 2581,
@@ -338,6 +369,10 @@ describe('Charging sessions (e2e)', () => {
       endedAt: now.toISOString(),
       idleFeeCents: 3000,
       totalCents: 5581,
+      projectedChargingEndsAt: null,
+      projectedGraceEndsAt: null,
+      projectedIdleStartsAt: null,
+      projectedIdleFeeCapReachedAt: null,
     });
     const again = await post(`/sessions/${sessionId}/stop`, driver).expect(409);
     expect(again.body.code).toBe('SESSION_ALREADY_ENDED');
