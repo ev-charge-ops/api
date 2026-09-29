@@ -262,6 +262,8 @@ function responseFields(session: ChargingSession): SessionResponseDto {
     startedAt: props.startedAt,
     chargingEndedAt: props.chargingEndedAt,
     graceEndsAt: session.graceEndsAt,
+    idleStartsAt: session.idleStartsAt,
+    idleFeeCapReachedAt: session.idleFeeCapReachedAt,
     endedAt: props.endedAt,
     energyKwh: whToKwh(props.energyWh),
     powerKw: props.powerKw,

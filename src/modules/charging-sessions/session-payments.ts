@@ -12,6 +12,7 @@ import { PaymentRecordsRepository } from './database/payment-records.repository.
 import type { ChargingSession } from './domain/charging-session.entity.js';
 import { holdAmountCents, PAYMENT_CURRENCY } from './domain/session-payment.js';
 import { PaymentSheetDto } from './dto/payment-sheet.dto.js';
+import { SessionEvents, snapshotOf } from './session-events.js';
 import { SessionStarter } from './session-starter.js';
 
 export const MERCHANT_DISPLAY_NAME = 'EV ChargeOps';
@@ -31,6 +32,7 @@ export class SessionPayments {
     private readonly records: PaymentRecordsRepository,
     private readonly starter: SessionStarter,
     private readonly clock: Clock,
+    private readonly events: SessionEvents,
     config: ConfigService<Env, true>,
   ) {
     this.holdEnergyWh = Math.round(
@@ -90,8 +92,10 @@ export class SessionPayments {
     const intent = await this.gateway.retrieve(payment.intentId);
     let current = session;
     for (let attempt = 0; attempt < MAX_SAVE_ATTEMPTS; attempt++) {
+      const before = snapshotOf(current);
       const startCharging = applyIntent(current, intent, now);
       if (await this.sessions.save(current, [])) {
+        await this.events.changed(before, current);
         if (startCharging) {
           await this.starter.start(current);
         }
@@ -113,13 +117,16 @@ export class SessionPayments {
     if (!settlement || !payment) {
       return;
     }
+    const before = snapshotOf(session);
     try {
       const intent =
         settlement.action === 'CAPTURE'
           ? await this.gateway.capture(payment.intentId, settlement.amountCents)
           : await this.gateway.cancel(payment.intentId);
       applyIntent(session, intent, this.clock.now());
-      await this.sessions.save(session, []);
+      if (await this.sessions.save(session, [])) {
+        await this.events.changed(before, session);
+      }
     } catch (error) {
       this.logger.warn(
         `Could not ${settlement.action.toLowerCase()} payment ${payment.intentId}: ${String(error)}`,

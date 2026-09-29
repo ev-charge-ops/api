@@ -16,6 +16,7 @@ import {
 } from '../../domain/charging-session.entity.js';
 import { SessionStatus } from '../../domain/session-status.js';
 import type { SessionResponseDto } from '../../dto/session.response.dto.js';
+import { SessionEvents, snapshotOf } from '../../session-events.js';
 import { SessionPayments } from '../../session-payments.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
 import { sessionFeatures } from './session-features.js';
@@ -29,6 +30,7 @@ export class StopSessionService {
     private readonly anomalyScorer: AnomalyScorer,
     private readonly payments: SessionPayments,
     private readonly clock: Clock,
+    private readonly events: SessionEvents,
   ) {}
 
   async execute(
@@ -55,6 +57,7 @@ export class StopSessionService {
         socPercent: props.socPercent,
       });
     }
+    const before = snapshotOf(session);
     try {
       session.stop(now);
     } catch (error) {
@@ -66,6 +69,7 @@ export class StopSessionService {
     if (!(await this.sessions.save(session, readings))) {
       throw alreadyEnded();
     }
+    await this.events.changed(before, session);
     await this.scoreAnomaly(session);
     await this.payments.settle(session);
     return toResponse(session);

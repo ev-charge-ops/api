@@ -3,6 +3,11 @@ import { Clock } from '../../common/clock/clock.js';
 import { ChargerGateway } from '../charger-gateway/charger-gateway.port.js';
 import { ChargingSessionRepository } from './database/charging-session.repository.port.js';
 import type { ChargingSession } from './domain/charging-session.entity.js';
+import {
+  SessionEvents,
+  type SessionSnapshot,
+  snapshotOf,
+} from './session-events.js';
 
 @Injectable()
 export class SessionStarter {
@@ -12,10 +17,12 @@ export class SessionStarter {
     private readonly sessions: ChargingSessionRepository,
     private readonly gateway: ChargerGateway,
     private readonly clock: Clock,
+    private readonly events: SessionEvents,
   ) {}
 
   async start(session: ChargingSession): Promise<boolean> {
     const props = session.toProps();
+    const before = snapshotOf(session);
     try {
       const started = await this.gateway.start({
         sessionId: props.id,
@@ -32,10 +39,19 @@ export class SessionStarter {
         `Charger ${props.chargerSerialNumber} did not start: ${String(error)}`,
       );
       session.interrupt(this.clock.now());
-      await this.sessions.save(session, []);
+      await this.saveAndPublish(before, session);
       return false;
     }
-    await this.sessions.save(session, []);
+    await this.saveAndPublish(before, session);
     return true;
+  }
+
+  private async saveAndPublish(
+    before: SessionSnapshot,
+    session: ChargingSession,
+  ): Promise<void> {
+    if (await this.sessions.save(session, [])) {
+      await this.events.changed(before, session);
+    }
   }
 }

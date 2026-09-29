@@ -1,5 +1,10 @@
 import { randomBytes } from 'node:crypto';
-import { HttpStatus, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.schema.js';
 import { PrismaService } from '../../database/prisma.service.js';
@@ -16,6 +21,7 @@ import { PasswordService } from '../auth/password.service.js';
 import { hashToken } from '../auth/refresh-token.service.js';
 import { MailSender } from '../mail/mail-sender.js';
 import { organizationInvite } from '../mail/templates/organization-invite.js';
+import { Notifier } from '../notifications/notifier.js';
 import { UsersService } from '../users/users.service.js';
 import type { AcceptInviteDto } from './dto/accept-invite.dto.js';
 import type { CreateInviteDto } from './dto/create-invite.dto.js';
@@ -44,6 +50,8 @@ type PrismaTransaction = Prisma.TransactionClient;
 
 @Injectable()
 export class InvitesService {
+  private readonly logger = new Logger(InvitesService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
@@ -51,6 +59,7 @@ export class InvitesService {
     private readonly auth: AuthService,
     private readonly mail: MailSender,
     private readonly config: ConfigService<Env, true>,
+    private readonly notifier: Notifier,
   ) {}
 
   async create(
@@ -287,11 +296,11 @@ export class InvitesService {
     }
   }
 
-  private sendInviteEmail(
+  private async sendInviteEmail(
     invite: InviteWithContext,
     token: string,
   ): Promise<void> {
-    return this.mail.send({
+    await this.mail.send({
       to: invite.email,
       ...organizationInvite({
         managerName: invite.invitedBy.name,
@@ -304,6 +313,40 @@ export class InvitesService {
         ),
         expiresInDays: INVITE_TTL_DAYS,
       }),
+    });
+    await this.notifyInvitee(invite);
+  }
+
+  private async notifyInvitee(invite: InviteWithContext): Promise<void> {
+    let invitee: { id: string } | null;
+    try {
+      invitee = await this.prisma.user.findFirst({
+        where: { email: { equals: invite.email, mode: 'insensitive' } },
+        select: { id: true },
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Could not look up the invitee of invite ${invite.id}: ${String(error)}`,
+      );
+      return;
+    }
+    if (!invitee) {
+      return;
+    }
+    const unit = invite.unitLabel ? ` (unidade ${invite.unitLabel})` : '';
+    await this.notifier.notify({
+      userId: invitee.id,
+      type: 'ORGANIZATION_INVITE',
+      title: `Convite de ${invite.organization.name}`,
+      body: `${invite.invitedBy.name} convidou você para ${invite.organization.name}${unit}. Abra o link enviado para ${invite.email} para aceitar.`,
+      data: {
+        inviteId: invite.id,
+        organizationId: invite.organizationId,
+        organizationName: invite.organization.name,
+        unitLabel: invite.unitLabel,
+        expiresAt: invite.expiresAt.toISOString(),
+      },
+      dedupeKey: `invite:${invite.id}:${invite.expiresAt.getTime()}`,
     });
   }
 }
