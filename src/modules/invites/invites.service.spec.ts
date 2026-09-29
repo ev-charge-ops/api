@@ -6,6 +6,7 @@ import type { AuthService } from '../auth/auth.service.js';
 import type { PasswordService } from '../auth/password.service.js';
 import { hashToken } from '../auth/refresh-token.service.js';
 import type { MailMessage, MailSender } from '../mail/mail-sender.js';
+import type { Notifier } from '../notifications/notifier.js';
 import type { UsersService } from '../users/users.service.js';
 import { INVITE_TTL_DAYS, InvitesService } from './invites.service.js';
 
@@ -14,6 +15,7 @@ const ORGANIZATION_ID = 'organization-1';
 function createPrismaMock() {
   return {
     membership: { findFirst: vi.fn().mockResolvedValue(null) },
+    user: { findFirst: vi.fn().mockResolvedValue(null) },
     invite: {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn(({ data }: { data: Record<string, unknown> }) =>
@@ -38,6 +40,7 @@ describe('InvitesService.create', () => {
   let prisma: ReturnType<typeof createPrismaMock>;
   let sent: MailMessage[];
   let send: ReturnType<typeof vi.fn>;
+  let notify: ReturnType<typeof vi.fn>;
   let service: InvitesService;
 
   beforeEach(() => {
@@ -47,6 +50,7 @@ describe('InvitesService.create', () => {
       sent.push(message);
       return Promise.resolve();
     });
+    notify = vi.fn().mockResolvedValue(true);
     service = new InvitesService(
       prisma as unknown as PrismaService,
       {} as UsersService,
@@ -56,6 +60,7 @@ describe('InvitesService.create', () => {
       {
         get: () => 'https://app.evchargeops.com.br',
       } as unknown as ConfigService<Env, true>,
+      { notify } as unknown as Notifier,
     );
   });
 
@@ -89,6 +94,48 @@ describe('InvitesService.create', () => {
     expect(token).toBeDefined();
     expect(data.tokenHash).toBe(hashToken(token ?? ''));
     expect(data.tokenHash).not.toBe(token);
+  });
+
+  it('only emails invitees without an account', async () => {
+    await service.create(ORGANIZATION_ID, 'manager-1', {
+      email: 'ana@example.com',
+    });
+
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  it('also notifies invitees that already have an account', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 'user-9' });
+
+    await service.create(ORGANIZATION_ID, 'manager-1', {
+      email: 'ana@example.com',
+      unitLabel: 'B · 42',
+    });
+
+    expect(notify).toHaveBeenCalledOnce();
+    expect(notify.mock.calls[0][0]).toMatchObject({
+      userId: 'user-9',
+      type: 'ORGANIZATION_INVITE',
+      title: 'Convite de Residencial Aclimação',
+      body: 'Gestor Demo convidou você para Residencial Aclimação (unidade B · 42). Abra o link enviado para ana@example.com para aceitar.',
+      data: {
+        inviteId: 'invite-1',
+        organizationId: ORGANIZATION_ID,
+        organizationName: 'Residencial Aclimação',
+        unitLabel: 'B · 42',
+      },
+    });
+  });
+
+  it('keeps the invite when the invitee lookup fails', async () => {
+    prisma.user.findFirst.mockRejectedValue(new Error('database down'));
+
+    await expect(
+      service.create(ORGANIZATION_ID, 'manager-1', {
+        email: 'ana@example.com',
+      }),
+    ).resolves.toMatchObject({ status: 'PENDING' });
+    expect(prisma.invite.delete).not.toHaveBeenCalled();
   });
 
   it('rejects emails that already belong to a member', async () => {
