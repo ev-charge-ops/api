@@ -16,7 +16,10 @@ export type ChargePointRecord = ChargePoint & {
   chargers: Charger[];
 };
 
-export type SitePoint = Pick<ChargePoint, 'id' | 'organizationId' | 'isOnline'>;
+export type SitePoint = Pick<
+  ChargePoint,
+  'id' | 'organizationId' | 'isOnline' | 'type'
+>;
 
 export const OCCUPYING_SESSION_STATUSES: OccupyingSessionStatus[] = [
   'AWAITING_PAYMENT',
@@ -70,8 +73,32 @@ export class ChargePointsRepository {
   findSitePoints(organizationIds: string[]): Promise<SitePoint[]> {
     return this.prisma.chargePoint.findMany({
       where: { organizationId: { in: organizationIds } },
-      select: { id: true, organizationId: true, isOnline: true },
+      select: { id: true, organizationId: true, isOnline: true, type: true },
     });
+  }
+
+  findOnlineState(
+    id: string,
+  ): Promise<Pick<ChargePoint, 'id' | 'isOnline'> | null> {
+    return this.prisma.chargePoint.findUnique({
+      where: { id },
+      select: { id: true, isOnline: true },
+    });
+  }
+
+  async hasOpenSession(
+    userId: string,
+    chargePointId: string,
+  ): Promise<boolean> {
+    const session = await this.prisma.chargingSession.findFirst({
+      where: {
+        userId,
+        chargePointId,
+        status: { in: OCCUPYING_SESSION_STATUSES },
+      },
+      select: { id: true },
+    });
+    return session !== null;
   }
 
   async findOccupyingSessions(

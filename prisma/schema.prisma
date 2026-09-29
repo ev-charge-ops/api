@@ -94,6 +94,15 @@ enum NotificationType {
   PAYMENT_FAILED
   SESSION_INTERRUPTED
   ORGANIZATION_INVITE
+  QUEUE_TURN
+}
+
+enum QueueEntryStatus {
+  WAITING
+  NOTIFIED
+  EXPIRED
+  LEFT
+  FULFILLED
 }
 
 enum OneTimeTokenType {
@@ -123,6 +132,7 @@ model User {
   deletionRequests DeletionRequest[]
   pushTokens       PushToken[]
   notifications    Notification[]
+  queueEntries     QueueEntry[]
 }
 
 model UserIdentity {
@@ -231,6 +241,7 @@ model ChargePoint {
   chargers       Charger[]
   tariffs        Tariff[]
   sessions       ChargingSession[]
+  queueEntries   QueueEntry[]
 
   @@unique([organizationId, code])
   @@index([type])
@@ -403,4 +414,21 @@ model Notification {
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+}
+
+model QueueEntry {
+  id            String           @id @default(uuid())
+  chargePointId String
+  chargePoint   ChargePoint      @relation(fields: [chargePointId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status        QueueEntryStatus @default(WAITING)
+  reservedUntil DateTime?
+  notifiedAt    DateTime?
+  endedAt       DateTime?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@index([chargePointId, status, createdAt])
+  @@index([userId, status])
 }

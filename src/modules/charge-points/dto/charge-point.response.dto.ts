@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { ChargePointType } from '../../../generated/prisma/enums.js';
 import { ChargePointStatus } from '../charge-point-status.js';
 import { ChargePointPricingDto } from './charge-point-pricing.dto.js';
+import { QueueEntryResponseDto } from '../queue/dto/queue-entry.response.dto.js';
 import { ChargerResponseDto } from './charger.response.dto.js';
 
 export class ChargePointResponseDto {
@@ -49,4 +50,26 @@ export class ChargePointResponseDto {
     description: 'Null when no tariff is configured',
   })
   pricing: ChargePointPricingDto | null;
+
+  @ApiProperty({
+    example: 2,
+    description: 'People waiting or holding a reservation at this point',
+  })
+  queueLength: number;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'Set while the point is free but reserved for the head of the queue; only that user can start a session until then',
+  })
+  reservedUntil: Date | null;
+
+  @ApiProperty({
+    type: QueueEntryResponseDto,
+    nullable: true,
+    description: 'Your active entry in the queue of this point',
+  })
+  myQueueEntry: QueueEntryResponseDto | null;
 }

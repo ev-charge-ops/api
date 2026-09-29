@@ -5,6 +5,7 @@ import {
   type ChargePointQuote,
   ChargePointsService,
 } from '../../../charge-points/charge-points.service.js';
+import { ChargePointQueue } from '../../../charge-points/queue/charge-point-queue.js';
 import { allocatePowerKw } from '../../../charge-points/site-capacity.js';
 import { ChargerGateway } from '../../../charger-gateway/charger-gateway.port.js';
 import { toResponse } from '../../charging-session.mapper.js';
@@ -45,6 +46,7 @@ export class StartSessionService {
     private readonly payments: SessionPayments,
     private readonly clock: Clock,
     private readonly events: SessionEvents,
+    private readonly queue: ChargePointQueue,
   ) {}
 
   async execute(
@@ -65,6 +67,12 @@ export class StartSessionService {
       throw sessionConflict(
         SessionErrorCode.TARIFF_NOT_CONFIGURED,
         'Charge point has no tariff',
+      );
+    }
+    if (quote.reservedForUserId && quote.reservedForUserId !== userId) {
+      throw sessionConflict(
+        SessionErrorCode.CHARGE_POINT_RESERVED,
+        'Charge point is reserved for the next driver in the queue',
       );
     }
     if (quote.type === 'COMMERCIAL' && !this.payments.enabled) {
@@ -108,6 +116,7 @@ export class StartSessionService {
         'Charge point is in use',
       );
     }
+    await this.queue.sessionStarted(userId, quote.chargePointId, now);
 
     if (session.requiresPayment) {
       return toStartResponse(session, await this.openPayment(session));
