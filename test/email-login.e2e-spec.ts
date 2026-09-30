@@ -84,6 +84,7 @@ describe('Email login (e2e)', () => {
         email,
         role: 'DRIVER',
         emailVerified: true,
+        hasPassword: true,
       },
       accessToken: expect.any(String),
       refreshToken: expect.any(String),

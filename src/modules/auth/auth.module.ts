@@ -6,6 +6,8 @@ import { RolesGuard } from '../../common/guards/roles.guard.js';
 import type { Env } from '../../config/env.schema.js';
 import { MailModule } from '../mail/mail.module.js';
 import { UsersModule } from '../users/users.module.js';
+import { AccountController } from './account.controller.js';
+import { AccountService } from './account.service.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { EmailLoginService } from './email-login.service.js';
@@ -40,9 +42,10 @@ import { RefreshTokenService } from './refresh-token.service.js';
       }),
     }),
   ],
-  controllers: [AuthController, OAuthController],
+  controllers: [AuthController, OAuthController, AccountController],
   providers: [
     AuthService,
+    AccountService,
     PasswordService,
     RefreshTokenService,
     OneTimeTokenService,

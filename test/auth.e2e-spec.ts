@@ -41,6 +41,7 @@ describe('Auth (e2e)', () => {
         email,
         role: 'DRIVER',
         emailVerified: false,
+        hasPassword: true,
       },
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
