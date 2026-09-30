@@ -12,6 +12,9 @@ import { Notifier } from '../notifications/notifier.js';
 import type { ChargingSession } from './domain/charging-session.entity.js';
 import { PaymentStatus } from './domain/session-payment.js';
 import { isOpenStatus, SessionStatus } from './domain/session-status.js';
+import { SessionProjector } from './session-projector.js';
+
+export const LATE_TRANSITION_MS = 60_000;
 
 interface SessionMessage {
   type: NotificationType;
@@ -129,6 +132,7 @@ export class SessionEvents {
     private readonly notifier: Notifier,
     private readonly queue: ChargePointQueue,
     private readonly clock: Clock,
+    private readonly projector: SessionProjector,
   ) {}
 
   async changed(
@@ -142,8 +146,11 @@ export class SessionEvents {
     ) {
       return;
     }
+    const silent = this.detectedLate(session);
     for (const notification of sessionNotifications(session)) {
-      await this.notifier.notify(notification);
+      await this.notifier.notify(notification, {
+        push: !silent.has(notification.type),
+      });
     }
     if ((!before || isOpenStatus(before.status)) && !session.isOpen) {
       await this.queue.advance(
@@ -151,5 +158,22 @@ export class SessionEvents {
         this.clock.now(),
       );
     }
+  }
+
+  private detectedLate(session: ChargingSession): Set<NotificationType> {
+    const silent = new Set<NotificationType>();
+    if (!this.projector.isProjectable(session)) {
+      return silent;
+    }
+    const now = this.clock.now().getTime();
+    const isLate = (at: Date | null) =>
+      at !== null && now - at.getTime() > LATE_TRANSITION_MS;
+    if (isLate(session.toProps().chargingEndedAt)) {
+      silent.add('CHARGING_COMPLETE');
+    }
+    if (isLate(session.idleStartsAt)) {
+      silent.add('IDLE_FEE_STARTED');
+    }
+    return silent;
   }
 }
