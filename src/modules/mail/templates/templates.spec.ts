@@ -3,6 +3,7 @@ import { escapeHtml } from './escape-html.js';
 import { formatDuration } from './format-duration.js';
 import { BRAND_DARK, BRAND_RED, renderLayout } from './layout.js';
 import { organizationInvite } from './organization-invite.js';
+import { passwordChanged } from './password-changed.js';
 import { passwordReset } from './password-reset.js';
 import { verifyEmail } from './verify-email.js';
 
@@ -176,5 +177,34 @@ describe('organizationInvite', () => {
     expect(email.html).not.toContain('<script>');
     expect(email.html).not.toContain('<b>X</b>');
     expect(email.html).toContain('Condomínio &lt;b&gt;X&lt;/b&gt;');
+  });
+});
+
+describe('passwordChanged', () => {
+  const forgotPasswordUrl = 'https://app.evchargeops.com.br/forgot-password';
+  const email = passwordChanged({
+    name: maliciousName,
+    changedAt: new Date('2026-10-07T19:05:00.000Z'),
+    forgotPasswordUrl,
+  });
+
+  it('renders the pt-BR security notice with the local change time', () => {
+    expect(email.subject).toBe('Sua senha foi alterada');
+    expect(email.text).toContain('07/10/2026 às 16:05 (horário de Brasília)');
+    expect(email.html).toContain('07/10/2026 às 16:05 (horário de Brasília)');
+    expect(email.text).toContain('sessões abertas nos outros dispositivos');
+  });
+
+  it('links to the password reset flow in html and text', () => {
+    expect(email.html).toContain(`href="${forgotPasswordUrl}"`);
+    expect(email.text).toContain(`Redefinir senha: ${forgotPasswordUrl}`);
+  });
+
+  it('escapes the user name in html', () => {
+    expect(email.html).not.toContain('<script>');
+    expect(email.html).toContain(
+      'Olá, &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; Cia!',
+    );
+    expect(email.text).toContain(`Olá, ${maliciousName}!`);
   });
 });
