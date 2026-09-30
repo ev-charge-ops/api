@@ -31,6 +31,7 @@ import type {
   StartSessionRequestDto,
 } from './start-session.request.dto.js';
 import { StartSessionResponseDto } from './start-session.response.dto.js';
+import { SessionProjector } from '../../session-projector.js';
 
 const WH_PER_KWH = 1000;
 
@@ -47,6 +48,7 @@ export class StartSessionService {
     private readonly clock: Clock,
     private readonly events: SessionEvents,
     private readonly queue: ChargePointQueue,
+    private readonly projector: SessionProjector,
   ) {}
 
   async execute(
@@ -119,7 +121,7 @@ export class StartSessionService {
     await this.queue.sessionStarted(userId, quote.chargePointId, now);
 
     if (session.requiresPayment) {
-      return toStartResponse(session, await this.openPayment(session));
+      return this.toStartResponse(session, await this.openPayment(session));
     }
     if (!(await this.starter.start(session))) {
       throw sessionError(
@@ -128,7 +130,18 @@ export class StartSessionService {
         'Charger did not start the session',
       );
     }
-    return toStartResponse(session, null);
+    return this.toStartResponse(session, null);
+  }
+
+  private toStartResponse(
+    session: ChargingSession,
+    paymentSheet: PaymentSheetDto | null,
+  ): StartSessionResponseDto {
+    return Object.assign(
+      new StartSessionResponseDto(),
+      toResponse(session, this.projector.timelineOf(session)),
+      { paymentSheet },
+    );
   }
 
   private async openPayment(
@@ -188,13 +201,4 @@ function toLimit(dto: ChargingLimitRequestDto | undefined): ChargingLimit {
       }
       return { type: 'AMOUNT', amountCents: dto.value ?? 0 };
   }
-}
-
-function toStartResponse(
-  session: ChargingSession,
-  paymentSheet: PaymentSheetDto | null,
-): StartSessionResponseDto {
-  return Object.assign(new StartSessionResponseDto(), toResponse(session), {
-    paymentSheet,
-  });
 }

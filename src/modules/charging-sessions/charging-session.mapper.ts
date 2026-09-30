@@ -11,6 +11,7 @@ import {
   ChargingSession,
   type ChargingSessionProps,
   type MeterSample,
+  type SessionTimeline,
 } from './domain/charging-session.entity.js';
 import type { SessionPayment } from './domain/session-payment.js';
 import { MeterReadingDto } from './dto/meter-reading.dto.js';
@@ -221,24 +222,34 @@ export function readingToSample(reading: MeterReading): MeterSample {
   };
 }
 
-export function toResponse(session: ChargingSession): SessionResponseDto {
-  return Object.assign(new SessionResponseDto(), responseFields(session));
+export function toResponse(
+  session: ChargingSession,
+  timeline: SessionTimeline,
+): SessionResponseDto {
+  return Object.assign(
+    new SessionResponseDto(),
+    responseFields(session, timeline),
+  );
 }
 
 export function toDetailResponse(
   session: ChargingSession,
   readings: MeterSample[],
+  timeline: SessionTimeline,
 ): SessionDetailResponseDto {
   return Object.assign(
     new SessionDetailResponseDto(),
-    responseFields(session),
+    responseFields(session, timeline),
     {
       readings: readings.map(toReadingDto),
     },
   );
 }
 
-function responseFields(session: ChargingSession): SessionResponseDto {
+function responseFields(
+  session: ChargingSession,
+  timeline: SessionTimeline,
+): SessionResponseDto {
   const props = session.toProps();
   const { limit } = props;
   return {
@@ -264,6 +275,10 @@ function responseFields(session: ChargingSession): SessionResponseDto {
     graceEndsAt: session.graceEndsAt,
     idleStartsAt: session.idleStartsAt,
     idleFeeCapReachedAt: session.idleFeeCapReachedAt,
+    projectedChargingEndsAt: timeline.chargingEndsAt,
+    projectedGraceEndsAt: timeline.graceEndsAt,
+    projectedIdleStartsAt: timeline.idleStartsAt,
+    projectedIdleFeeCapReachedAt: timeline.idleFeeCapReachedAt,
     endedAt: props.endedAt,
     energyKwh: whToKwh(props.energyWh),
     powerKw: props.powerKw,

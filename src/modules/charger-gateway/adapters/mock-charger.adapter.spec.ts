@@ -3,6 +3,7 @@ import {
   MOCK_VEHICLE,
   MockChargerGateway,
   mockTelemetry,
+  projectedCompletion,
 } from './mock-charger.adapter.js';
 
 const STARTED_AT = new Date('2026-10-07T22:00:00.000Z');
@@ -113,6 +114,41 @@ describe('mockTelemetry', () => {
   });
 });
 
+describe('projectedCompletion', () => {
+  it.each([
+    ['a full charge with the taper', profile()],
+    ['an energy limit', profile({ targetEnergyWh: 3500 })],
+    ['an accelerated simulation', profile({ timeScale: 60 })],
+    ['a lower allocated power', profile({ allocatedPowerKw: 3.7 })],
+  ])('matches the completion the telemetry reports for %s', (_, charging) => {
+    const projected = projectedCompletion(charging);
+    const { completedAt } = mockTelemetry(charging, {
+      since: STARTED_AT,
+      until: minutesAfterStart(2000, charging.timeScale),
+    });
+
+    expect(projected).not.toBeNull();
+    expect(projected).toEqual(completedAt);
+  });
+
+  it('projects the energy limit before charging starts to report it', () => {
+    expect(projectedCompletion(profile({ targetEnergyWh: 3500 }))).toEqual(
+      minutesAfterStart(30),
+    );
+  });
+
+  it('cannot project a charger that delivers no power', () => {
+    expect(projectedCompletion(profile({ allocatedPowerKw: 0 }))).toBeNull();
+    expect(projectedCompletion(profile({ batteryCapacityWh: 0 }))).toBeNull();
+  });
+
+  it('completes at the start when there is nothing to charge', () => {
+    expect(projectedCompletion(profile({ targetEnergyWh: 0 }))).toEqual(
+      STARTED_AT,
+    );
+  });
+});
+
 describe('MockChargerGateway', () => {
   it('starts with the simulated vehicle and a transaction id', async () => {
     const gateway = new MockChargerGateway(60);
@@ -128,5 +164,13 @@ describe('MockChargerGateway', () => {
       vehicle: { batteryCapacityWh: 50_000, socPercent: 42 },
     });
     expect(gateway.timeScale).toBe(60);
+  });
+
+  it('projects the completion of a charging profile', () => {
+    expect(
+      new MockChargerGateway(60).projectCompletion(
+        profile({ targetEnergyWh: 3500, timeScale: 60 }),
+      ),
+    ).toEqual(minutesAfterStart(30, 60));
   });
 });

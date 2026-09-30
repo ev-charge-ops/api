@@ -20,6 +20,7 @@ import { SessionEvents, snapshotOf } from '../../session-events.js';
 import { SessionPayments } from '../../session-payments.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
 import { sessionFeatures } from './session-features.js';
+import { SessionProjector } from '../../session-projector.js';
 
 @Injectable()
 export class StopSessionService {
@@ -31,6 +32,7 @@ export class StopSessionService {
     private readonly payments: SessionPayments,
     private readonly clock: Clock,
     private readonly events: SessionEvents,
+    private readonly projector: SessionProjector,
   ) {}
 
   async execute(
@@ -72,7 +74,7 @@ export class StopSessionService {
     await this.events.changed(before, session);
     await this.scoreAnomaly(session);
     await this.payments.settle(session);
-    return toResponse(session);
+    return toResponse(session, this.projector.timelineOf(session));
   }
 
   private async scoreAnomaly(session: ChargingSession): Promise<void> {

@@ -19,6 +19,10 @@ export class SemsChargerGateway extends ChargerGateway {
   readTelemetry(): Promise<Telemetry> {
     return Promise.reject(notImplemented());
   }
+
+  projectCompletion(): Date | null {
+    return null;
+  }
 }
 
 function notImplemented(): NotImplementedException {
