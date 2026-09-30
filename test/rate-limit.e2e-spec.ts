@@ -46,6 +46,15 @@ describe('Rate limiting (e2e)', () => {
       .expect(400);
   });
 
+  it('applies the stricter limit to password changes', async () => {
+    const server = app.getHttpServer();
+    const body = { newPassword: 'whatever-123' };
+
+    await request(server).post('/me/password').send(body).expect(401);
+    await request(server).post('/me/password').send(body).expect(401);
+    await request(server).post('/me/password').send(body).expect(429);
+  });
+
   it('keeps the default limit on other routes', async () => {
     const server = app.getHttpServer();
 
