@@ -59,7 +59,7 @@ Implementadas em [`src/modules/charging-sessions`](src/modules/charging-sessions
 - Tarifa, fator de demanda, tolerância e multa por ocupação ficam travados no início da sessão.
 - Limite de recarga escolhido pelo motorista: até 100%, em kWh ou em R$.
 - Um motorista tem no máximo uma sessão aberta, e um ponto atende uma sessão por vez. A potência é alocada pela capacidade disponível do local.
-- **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
+- **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`, `GET /organizations/:organizationId/sessions/:sessionId`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
 - O carregador fica atrás da port `ChargerGateway`. O adapter `mock` simula a telemetria com tempo acelerado (`SIMULATION_SPEED`, 60 por padrão: 1 s real = 1 min de recarga). O adapter `sems` (API da GoodWe) ainda responde `501`.
 
 ### Detecção de anomalias
