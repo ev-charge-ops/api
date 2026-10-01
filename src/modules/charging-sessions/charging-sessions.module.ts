@@ -3,6 +3,7 @@ import { ChargePointsModule } from '../charge-points/charge-points.module.js';
 import { ChargerGatewayModule } from '../charger-gateway/charger-gateway.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
+import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { PaymentsModule } from '../payments/payments.module.js';
 import { ConfirmSessionPaymentController } from './commands/confirm-session-payment/confirm-session-payment.controller.js';
 import { ConfirmSessionPaymentService } from './commands/confirm-session-payment/confirm-session-payment.service.js';
@@ -19,6 +20,8 @@ import { ChargingSessionRepository } from './database/charging-session.repositor
 import { PaymentRecordsRepository } from './database/payment-records.repository.js';
 import { GetActiveSessionController } from './queries/get-active-session/get-active-session.controller.js';
 import { GetActiveSessionService } from './queries/get-active-session/get-active-session.service.js';
+import { GetOrganizationSessionController } from './queries/get-organization-session/get-organization-session.controller.js';
+import { GetOrganizationSessionService } from './queries/get-organization-session/get-organization-session.service.js';
 import { GetSessionController } from './queries/get-session/get-session.controller.js';
 import { GetSessionService } from './queries/get-session/get-session.service.js';
 import { ListMySessionsController } from './queries/list-my-sessions/list-my-sessions.controller.js';
@@ -35,6 +38,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     ChargerGatewayModule,
     IntelligenceModule,
     NotificationsModule,
+    OrganizationsModule,
     PaymentsModule,
   ],
   controllers: [
@@ -42,6 +46,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     GetActiveSessionController,
     ListMySessionsController,
     GetSessionController,
+    GetOrganizationSessionController,
     StopSessionController,
     ConfirmSessionPaymentController,
     CreatePaymentSheetController,
@@ -61,6 +66,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     StartSessionService,
     StopSessionService,
     GetSessionService,
+    GetOrganizationSessionService,
     GetActiveSessionService,
     ListMySessionsService,
     ConfirmSessionPaymentService,
