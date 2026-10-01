@@ -172,6 +172,10 @@ export class ChargingSession {
     return this.props.userId;
   }
 
+  get organizationId(): string {
+    return this.props.organizationId;
+  }
+
   get status(): SessionStatus {
     return this.props.status;
   }
