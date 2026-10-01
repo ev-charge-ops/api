@@ -21,6 +21,7 @@ import {
 import {
   ChargingSessionRepository,
   CreateSessionResult,
+  type SessionDriver,
   type SessionPage,
 } from './charging-session.repository.port.js';
 
@@ -166,5 +167,12 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
       orderBy: { at: 'asc' },
     });
     return readings.map(readingToSample);
+  }
+
+  findDriver(userId: string): Promise<SessionDriver | null> {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true },
+    });
   }
 }
