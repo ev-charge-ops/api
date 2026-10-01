@@ -49,23 +49,29 @@ function createInMemoryPrisma() {
         const token: RefreshToken = {
           id: randomUUID(),
           revokedAt: null,
+          rotatedAt: null,
+          replacedById: null,
           createdAt: new Date(),
           ...data,
         };
         refreshTokens.push(token);
         return Promise.resolve(token);
       },
-      findUnique: ({ where }: { where: { tokenHash: string } }) =>
+      findUnique: ({ where }: { where: { id?: string; tokenHash?: string } }) =>
         Promise.resolve(
-          refreshTokens.find((token) => token.tokenHash === where.tokenHash) ??
-            null,
+          refreshTokens.find(
+            (token) =>
+              (where.id === undefined || token.id === where.id) &&
+              (where.tokenHash === undefined ||
+                token.tokenHash === where.tokenHash),
+          ) ?? null,
         ),
       updateMany: ({
         where,
         data,
       }: {
         where: { id?: string; tokenHash?: string; revokedAt: null };
-        data: { revokedAt: Date };
+        data: Partial<RefreshToken>;
       }) => {
         const matching = refreshTokens.filter(
           (token) =>
@@ -75,9 +81,13 @@ function createInMemoryPrisma() {
             token.revokedAt === null,
         );
         for (const token of matching) {
-          token.revokedAt = data.revokedAt;
+          Object.assign(token, data);
         }
         return Promise.resolve({ count: matching.length });
+      },
+      delete: ({ where }: { where: { id: string } }) => {
+        const index = refreshTokens.findIndex((token) => token.id === where.id);
+        return Promise.resolve(refreshTokens.splice(index, 1)[0]);
       },
     },
   };
@@ -98,7 +108,13 @@ describe('AuthService', () => {
   beforeEach(() => {
     prisma = createInMemoryPrisma();
     const prismaService = prisma as unknown as PrismaService;
-    const config = { get: () => 7 } as unknown as ConfigService<Env, true>;
+    const settings: Partial<Env> = {
+      REFRESH_TTL_DAYS: 7,
+      REFRESH_REUSE_GRACE_SECONDS: 0,
+    };
+    const config = {
+      get: (key: keyof Env) => settings[key],
+    } as unknown as ConfigService<Env, true>;
     jwt = new JwtService({ secret: 'test-secret' });
     emailVerification = {
       sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
@@ -223,7 +239,7 @@ describe('AuthService', () => {
   });
 
   describe('refresh', () => {
-    it('rotates the refresh token and rejects reuse of the old one', async () => {
+    it('rotates the refresh token and rejects reuse of the old one after the grace window', async () => {
       const session = await service.register(registration);
 
       const refreshed = await service.refresh(session.refreshToken);

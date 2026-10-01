@@ -5,6 +5,7 @@ import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/database/prisma.service.js';
+import { hashToken } from './../src/modules/auth/refresh-token.service.js';
 
 describe('Auth (e2e)', () => {
   let app: INestApplication<App>;
@@ -72,11 +73,6 @@ describe('Auth (e2e)', () => {
     expect(refreshed.body.user).toEqual(registered.body.user);
 
     await request(server)
-      .post('/auth/refresh')
-      .send({ refreshToken: loggedIn.body.refreshToken })
-      .expect(401);
-
-    await request(server)
       .post('/auth/logout')
       .send({ refreshToken: refreshed.body.refreshToken })
       .expect(204);
@@ -85,6 +81,72 @@ describe('Auth (e2e)', () => {
       .post('/auth/refresh')
       .send({ refreshToken: refreshed.body.refreshToken })
       .expect(401);
+    await request(server)
+      .post('/auth/refresh')
+      .send({ refreshToken: loggedIn.body.refreshToken })
+      .expect(401);
+  });
+
+  describe('refresh token reuse', () => {
+    const login = async (): Promise<string> => {
+      const response = await request(app.getHttpServer())
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(200);
+      return response.body.refreshToken as string;
+    };
+
+    const refresh = (refreshToken: string) =>
+      request(app.getHttpServer()).post('/auth/refresh').send({ refreshToken });
+
+    it('accepts two concurrent refreshes with the same token', async () => {
+      const refreshToken = await login();
+
+      const [first, second] = await Promise.all([
+        refresh(refreshToken),
+        refresh(refreshToken),
+      ]);
+
+      expect(first.status).toBe(200);
+      expect(second.status).toBe(200);
+      expect(first.body.refreshToken).not.toBe(second.body.refreshToken);
+      await refresh(first.body.refreshToken).expect(200);
+      await refresh(second.body.refreshToken).expect(200);
+    });
+
+    it('accepts a retry with a rotated token whose response was lost', async () => {
+      const refreshToken = await login();
+      await refresh(refreshToken).expect(200);
+
+      const retried = await refresh(refreshToken).expect(200);
+
+      await refresh(retried.body.refreshToken).expect(200);
+    });
+
+    it('rejects a rotated token after the grace window', async () => {
+      const refreshToken = await login();
+      await refresh(refreshToken).expect(200);
+
+      await app.get(PrismaService).refreshToken.update({
+        where: { tokenHash: hashToken(refreshToken) },
+        data: { rotatedAt: new Date(Date.now() - 61_000) },
+      });
+
+      await refresh(refreshToken).expect(401);
+    });
+
+    it('rejects a rotated token after logout', async () => {
+      const refreshToken = await login();
+      const refreshed = await refresh(refreshToken).expect(200);
+
+      await request(app.getHttpServer())
+        .post('/auth/logout')
+        .send({ refreshToken: refreshed.body.refreshToken })
+        .expect(204);
+
+      await refresh(refreshToken).expect(401);
+      await refresh(refreshed.body.refreshToken).expect(401);
+    });
   });
 
   it('rejects /auth/me without a token', () => {
