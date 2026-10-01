@@ -69,6 +69,16 @@ export interface SiteDemand {
   currentDemandKw: number;
 }
 
+export interface OrganizationRates {
+  accessFeeCents: number;
+  utilityRateCents: number | null;
+}
+
+export interface UnitMembership {
+  organization: { id: string; name: string };
+  unitLabel: string;
+}
+
 export abstract class CostSharingRepository {
   abstract findBillableSessions(
     organizationId: string,
@@ -77,10 +87,12 @@ export abstract class CostSharingRepository {
 
   abstract findUnitsWithVehicle(organizationId: string): Promise<string[]>;
 
-  abstract findAccessFeeCents(
+  abstract findOrganizationRates(
     organizationId: string,
     at: Date,
-  ): Promise<number>;
+  ): Promise<OrganizationRates>;
+
+  abstract findUnitMemberships(userId: string): Promise<UnitMembership[]>;
 
   abstract listSessions(
     organizationId: string,
