@@ -553,6 +553,64 @@ describe('Cost sharing (e2e)', () => {
     ).toEqual([0.6207, 0.9132]);
   });
 
+  it('shows each driver the statement of their own unit', async () => {
+    const response = await get('/me/statements/2026-08', tenantA).expect(200);
+
+    expect(response.body).toEqual({
+      organization: { id: organizationId, name: `Residencial ${run}` },
+      unitLabel: 'A · 11',
+      month: '2026-08',
+      status: 'CLOSED',
+      closesAt: '2026-09-01T03:00:00.000Z',
+      energyKwh: 15.81,
+      energyCents: 1407,
+      utilityRateCents: 89,
+      accessFeeCents: 3500,
+      idleFeeCents: 150,
+      totalCents: 5057,
+      sessionsCount: 2,
+      dailyEnergy: Array.from({ length: 31 }, (_, index) => ({
+        date: `2026-08-${String(index + 1).padStart(2, '0')}`,
+        energyKwh: index === 2 ? 11.76 : index === 9 ? 4.05 : 0,
+      })),
+    });
+
+    const unitB = await get(
+      `/me/statements/2026-08?organizationId=${organizationId}`,
+      tenantB,
+    ).expect(200);
+    expect(unitB.body).toMatchObject({
+      unitLabel: 'B · 42',
+      sessionsCount: 1,
+      energyKwh: 9.8,
+      totalCents: 7372,
+    });
+
+    const current = await get('/me/statements/2026-10', tenantC).expect(200);
+    expect(current.body).toMatchObject({
+      unitLabel: 'B · 11',
+      month: '2026-10',
+      status: 'OPEN',
+      closesAt: '2026-11-01T03:00:00.000Z',
+      sessionsCount: 0,
+      energyKwh: 0,
+      totalCents: 3500,
+    });
+  });
+
+  it('hides the driver statement from users without a unit', async () => {
+    await get('/me/statements/2026-08').expect(401);
+    await get('/me/statements/2026-13', tenantA).expect(400);
+    await get('/me/statements/august', tenantA).expect(400);
+    await get('/me/statements/2026-08?organizationId=abc', tenantA).expect(400);
+    await get(
+      `/me/statements/2026-08?organizationId=${randomUUID()}`,
+      tenantA,
+    ).expect(404);
+    await get('/me/statements/2026-08', manager).expect(404);
+    await get('/me/statements/2026-08', visitor).expect(404);
+  });
+
   it('defaults to the current month', async () => {
     const response = await get(path('statements'), manager).expect(200);
     expect(response.body.month).toBe('2026-10');
