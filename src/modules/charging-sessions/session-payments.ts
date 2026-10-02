@@ -9,6 +9,7 @@ import {
 } from '../payments/payment-gateway.port.js';
 import { ChargingSessionRepository } from './database/charging-session.repository.port.js';
 import { PaymentRecordsRepository } from './database/payment-records.repository.js';
+import type { Vehicle } from './domain/charging-limit.js';
 import type { ChargingSession } from './domain/charging-session.entity.js';
 import { holdAmountCents, PAYMENT_CURRENCY } from './domain/session-payment.js';
 import { PaymentSheetDto } from './dto/payment-sheet.dto.js';
@@ -48,7 +49,10 @@ export class SessionPayments {
     return this.gateway.enabled;
   }
 
-  async open(session: ChargingSession): Promise<PaymentSheetDto> {
+  async open(
+    session: ChargingSession,
+    vehicle: Vehicle | null = null,
+  ): Promise<PaymentSheetDto> {
     const props = session.toProps();
     const customerId = await this.customerFor(props.userId);
     const intent = await this.gateway.authorize({
@@ -59,6 +63,7 @@ export class SessionPayments {
         lockedRateCents: props.lockedRateCents,
         idleFeeCapCents: props.idleFeeCapCents,
         maxEnergyWh: this.holdEnergyWh,
+        vehicle,
       }),
       currency: PAYMENT_CURRENCY,
       description: `EV ChargeOps · ${props.chargePointName}`,
