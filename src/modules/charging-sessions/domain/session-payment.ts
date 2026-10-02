@@ -1,5 +1,8 @@
-import type { ChargingLimit } from './charging-limit.js';
-import { energyCostCents } from './session-fees.js';
+import {
+  type ChargingLimit,
+  energyToSocWh,
+  type Vehicle,
+} from './charging-limit.js';
 
 export const PaymentStatus = {
   PENDING_AUTHORIZATION: 'PENDING_AUTHORIZATION',
@@ -37,15 +40,28 @@ export interface HoldTerms {
   lockedRateCents: number;
   idleFeeCapCents: number;
   maxEnergyWh: number;
+  vehicle?: Vehicle | null;
+}
+
+function holdEnergyWh(terms: HoldTerms): number {
+  const { limit, maxEnergyWh, vehicle } = terms;
+  switch (limit.type) {
+    case 'ENERGY':
+      return Math.min(limit.energyWh, maxEnergyWh);
+    case 'PERCENT':
+      return vehicle
+        ? Math.min(energyToSocWh(vehicle, limit.socPercent), maxEnergyWh)
+        : maxEnergyWh;
+    default:
+      return maxEnergyWh;
+  }
 }
 
 export function holdAmountCents(terms: HoldTerms): number {
-  const { limit, lockedRateCents, idleFeeCapCents, maxEnergyWh } = terms;
-  const energyWh =
-    limit.type === 'ENERGY'
-      ? Math.min(limit.energyWh, maxEnergyWh)
-      : maxEnergyWh;
-  const energyCents = energyCostCents(energyWh, lockedRateCents);
+  const { limit, lockedRateCents, idleFeeCapCents } = terms;
+  const energyCents = Math.ceil(
+    (holdEnergyWh(terms) * lockedRateCents) / WH_PER_KWH,
+  );
   const chargeCents =
     limit.type === 'AMOUNT'
       ? Math.min(limit.amountCents, energyCents)

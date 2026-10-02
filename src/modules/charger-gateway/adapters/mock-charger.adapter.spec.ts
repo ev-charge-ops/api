@@ -81,6 +81,29 @@ describe('mockTelemetry', () => {
     expect(telemetry.current.energyWh).toBe(3500);
   });
 
+  it('stops when the state of charge reaches a percent target', () => {
+    const telemetry = mockTelemetry(profile({ targetEnergyWh: 24_000 }), {
+      since: STARTED_AT,
+      until: minutesAfterStart(600),
+    });
+
+    expect(telemetry.completedAt).not.toBeNull();
+    expect(telemetry.current).toMatchObject({
+      energyWh: 24_000,
+      socPercent: 90,
+      powerKw: 0,
+    });
+    expect(telemetry.samples.at(-1)).toMatchObject({
+      at: telemetry.completedAt,
+      socPercent: 90,
+    });
+    expect(
+      telemetry.samples
+        .slice(0, -1)
+        .every((sample) => sample.energyWh < 24_000),
+    ).toBe(true);
+  });
+
   it('only returns samples after the given instant', () => {
     const telemetry = mockTelemetry(profile(), {
       since: minutesAfterStart(20),
@@ -120,6 +143,17 @@ describe('projectedCompletion', () => {
     ['an energy limit', profile({ targetEnergyWh: 3500 })],
     ['an accelerated simulation', profile({ timeScale: 60 })],
     ['a lower allocated power', profile({ allocatedPowerKw: 3.7 })],
+    ['a percent target in the taper', profile({ targetEnergyWh: 24_000 })],
+    [
+      'a percent target of another vehicle',
+      profile({
+        targetEnergyWh: 29_440,
+        batteryCapacityWh: 64_000,
+        initialSocPercent: 17,
+        allocatedPowerKw: 11,
+        timeScale: 60,
+      }),
+    ],
   ])('matches the completion the telemetry reports for %s', (_, charging) => {
     const projected = projectedCompletion(charging);
     const { completedAt } = mockTelemetry(charging, {
@@ -164,6 +198,12 @@ describe('MockChargerGateway', () => {
       vehicle: { batteryCapacityWh: 50_000, socPercent: 42 },
     });
     expect(gateway.timeScale).toBe(60);
+  });
+
+  it('reports the simulated vehicle before charging starts', async () => {
+    await expect(
+      new MockChargerGateway(60).connectedVehicle(),
+    ).resolves.toEqual({ batteryCapacityWh: 50_000, socPercent: 42 });
   });
 
   it('projects the completion of a charging profile', () => {

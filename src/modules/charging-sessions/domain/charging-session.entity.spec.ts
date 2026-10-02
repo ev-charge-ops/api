@@ -82,6 +82,16 @@ describe('ChargingSession', () => {
     });
   });
 
+  it('targets the energy up to the state of charge of a percent limit', () => {
+    const session = activeSession({ type: 'PERCENT', socPercent: 80 });
+
+    expect(session.toProps()).toMatchObject({
+      limit: { type: 'PERCENT', socPercent: 80 },
+      initialSocPercent: 42,
+      targetEnergyWh: 19_000,
+    });
+  });
+
   it('only activates pending sessions', () => {
     const session = activeSession();
 

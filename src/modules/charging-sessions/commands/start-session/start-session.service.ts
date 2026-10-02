@@ -20,7 +20,11 @@ import {
   ChargingSessionRepository,
   CreateSessionResult,
 } from '../../database/charging-session.repository.port.js';
-import type { ChargingLimit } from '../../domain/charging-limit.js';
+import {
+  type ChargingLimit,
+  isReachableSoc,
+  type Vehicle,
+} from '../../domain/charging-limit.js';
 import { ChargingSession } from '../../domain/charging-session.entity.js';
 import type { PaymentSheetDto } from '../../dto/payment-sheet.dto.js';
 import { SessionEvents, snapshotOf } from '../../session-events.js';
@@ -34,6 +38,8 @@ import { StartSessionResponseDto } from './start-session.response.dto.js';
 import { SessionProjector } from '../../session-projector.js';
 
 const WH_PER_KWH = 1000;
+const MIN_SOC_PERCENT = 1;
+const MAX_SOC_PERCENT = 100;
 
 @Injectable()
 export class StartSessionService {
@@ -80,6 +86,7 @@ export class StartSessionService {
     if (quote.type === 'COMMERCIAL' && !this.payments.enabled) {
       throw paymentsUnavailable();
     }
+    const vehicle = await this.vehicleFor(limit, chargerSerialNumber);
     const allocatedPowerKw = await this.allocatePower(quote);
 
     const session = ChargingSession.create({
@@ -121,7 +128,10 @@ export class StartSessionService {
     await this.queue.sessionStarted(userId, quote.chargePointId, now);
 
     if (session.requiresPayment) {
-      return this.toStartResponse(session, await this.openPayment(session));
+      return this.toStartResponse(
+        session,
+        await this.openPayment(session, vehicle),
+      );
     }
     if (!(await this.starter.start(session))) {
       throw sessionError(
@@ -144,11 +154,32 @@ export class StartSessionService {
     );
   }
 
+  private async vehicleFor(
+    limit: ChargingLimit,
+    chargerSerialNumber: string,
+  ): Promise<Vehicle | null> {
+    if (limit.type !== 'PERCENT') {
+      return null;
+    }
+    const vehicle = await this.gateway
+      .connectedVehicle(chargerSerialNumber)
+      .catch(() => null);
+    if (vehicle && !isReachableSoc(vehicle, limit.socPercent)) {
+      throw sessionError(
+        HttpStatus.BAD_REQUEST,
+        SessionErrorCode.INVALID_LIMIT,
+        `PERCENT limits must be above the current state of charge of the vehicle (${vehicle.socPercent}%)`,
+      );
+    }
+    return vehicle;
+  }
+
   private async openPayment(
     session: ChargingSession,
+    vehicle: Vehicle | null,
   ): Promise<PaymentSheetDto> {
     try {
-      return await this.payments.open(session);
+      return await this.payments.open(session, vehicle);
     } catch (error) {
       this.logger.warn(
         `Payment for session ${session.id} could not be opened: ${String(error)}`,
@@ -200,5 +231,18 @@ function toLimit(dto: ChargingLimitRequestDto | undefined): ChargingLimit {
         );
       }
       return { type: 'AMOUNT', amountCents: dto.value ?? 0 };
+    case 'PERCENT':
+      if (
+        !Number.isInteger(dto.value) ||
+        (dto.value ?? 0) < MIN_SOC_PERCENT ||
+        (dto.value ?? 0) > MAX_SOC_PERCENT
+      ) {
+        throw sessionError(
+          HttpStatus.BAD_REQUEST,
+          SessionErrorCode.INVALID_LIMIT,
+          'PERCENT limits take an integer state of charge from 1 to 100',
+        );
+      }
+      return { type: 'PERCENT', socPercent: dto.value ?? 0 };
   }
 }
