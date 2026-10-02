@@ -11,7 +11,13 @@ const session = (
   energyWh: number,
   energyCostCents: number,
   idleFeeCents = 0,
-) => ({ unitLabel, energyWh, energyCostCents, idleFeeCents });
+) => ({
+  unitLabel,
+  startedAt: new Date('2026-08-10T22:00:00.000Z'),
+  energyWh,
+  energyCostCents,
+  idleFeeCents,
+});
 
 describe('buildMonthlyStatement', () => {
   const statement = buildMonthlyStatement({

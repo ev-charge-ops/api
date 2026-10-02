@@ -10,12 +10,15 @@ import {
   buildMonthlyStatement,
   type MonthlyStatement,
   type StatementAmounts,
+  type StatementSession,
 } from '../../domain/monthly-statement.js';
 import { MonthlyStatementResponseDto } from './monthly-statement.response.dto.js';
 
 export interface ResolvedStatement {
   range: MonthRange;
   accessFeeCents: number;
+  utilityRateCents: number | null;
+  sessions: StatementSession[];
   statement: MonthlyStatement;
 }
 
@@ -37,13 +40,13 @@ export class GetMonthlyStatementService {
     );
     const unitsWithVehicle =
       await this.repository.findUnitsWithVehicle(organizationId);
-    const accessFeeCents = await this.repository.findAccessFeeCents(
-      organizationId,
-      range.end,
-    );
+    const { accessFeeCents, utilityRateCents } =
+      await this.repository.findOrganizationRates(organizationId, range.end);
     return {
       range,
       accessFeeCents,
+      utilityRateCents,
+      sessions,
       statement: buildMonthlyStatement({
         unitsWithVehicle,
         sessions,
