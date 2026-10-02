@@ -36,6 +36,10 @@ export class MockChargerGateway extends ChargerGateway {
     super();
   }
 
+  connectedVehicle(): Promise<ConnectedVehicle | null> {
+    return Promise.resolve({ ...MOCK_VEHICLE });
+  }
+
   start(request: StartChargingRequest): Promise<StartedCharging> {
     return Promise.resolve({
       transactionId: `mock-${request.sessionId}`,
