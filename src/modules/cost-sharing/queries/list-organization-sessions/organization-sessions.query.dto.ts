@@ -11,7 +11,10 @@ import {
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../../common/pagination/pagination.query.dto.js';
 import { MONTH_PATTERN } from '../../../../common/time/month.query.dto.js';
-import { ChargingSessionStatus } from '../../../../generated/prisma/enums.js';
+import {
+  AnomalyReviewStatus,
+  ChargingSessionStatus,
+} from '../../../../generated/prisma/enums.js';
 import { parseBooleanQuery, trimString } from '../../../auth/dto/transforms.js';
 
 export class OrganizationSessionsQueryDto extends PaginationQueryDto {
@@ -49,4 +52,13 @@ export class OrganizationSessionsQueryDto extends PaginationQueryDto {
   @Transform(parseBooleanQuery)
   @IsBoolean()
   anomaly?: boolean;
+
+  @ApiPropertyOptional({
+    enum: AnomalyReviewStatus,
+    enumName: 'AnomalyReviewStatus',
+    description: 'Keeps only the flagged sessions with this review status',
+  })
+  @IsOptional()
+  @IsIn(Object.values(AnomalyReviewStatus))
+  reviewStatus?: AnomalyReviewStatus;
 }

@@ -1,5 +1,6 @@
 import type { MonthRange } from '../../../common/time/sao-paulo-time.js';
 import type {
+  AnomalyReviewStatus,
   ChargePointType,
   ChargingSessionStatus,
 } from '../../../generated/prisma/enums.js';
@@ -24,6 +25,10 @@ export interface OrganizationSessionRow {
   totalCents: number;
   anomalyScore: number | null;
   isAnomaly: boolean | null;
+  anomalyReviewStatus: AnomalyReviewStatus | null;
+  anomalyReviewNote: string | null;
+  anomalyReviewedAt: Date | null;
+  anomalyReviewedById: string | null;
 }
 
 export interface OrganizationSessionFilters {
@@ -32,6 +37,7 @@ export interface OrganizationSessionFilters {
   status?: ChargingSessionStatus;
   chargePointId?: string;
   anomaly?: boolean;
+  reviewStatus?: AnomalyReviewStatus;
 }
 
 export interface OverviewSession {
@@ -60,6 +66,10 @@ export interface RecentAnomalyRow {
   totalCents: number;
   anomalyScore: number | null;
   anomalyModelVersion: string | null;
+  anomalyReviewStatus: AnomalyReviewStatus | null;
+  anomalyReviewNote: string | null;
+  anomalyReviewedAt: Date | null;
+  anomalyReviewedById: string | null;
 }
 
 export interface SiteDemand {
@@ -110,6 +120,11 @@ export abstract class CostSharingRepository {
     before: Date,
     limit: number,
   ): Promise<RecentAnomalyRow[]>;
+
+  abstract countPendingAnomalyReviews(
+    organizationId: string,
+    before: Date,
+  ): Promise<number>;
 
   abstract findSiteDemand(organizationId: string): Promise<SiteDemand>;
 }
