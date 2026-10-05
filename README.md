@@ -40,7 +40,7 @@ As contas de demonstração estão descritas no [README do `docs`](https://githu
 
 ### Pontos de recarga e tarifas
 
-- Pontos `PRIVATE` (rede do condomínio) e `COMMERCIAL` (visitantes), com estado, potência e capacidade elétrica do local (demanda contratada menos a reserva das áreas comuns).
+- Pontos `PRIVATE` (rede do condomínio) e `COMMERCIAL` (visitantes), com estado, potência, foto opcional (`photoUrl`, URL absoluta) e capacidade elétrica do local (demanda contratada menos a reserva das áreas comuns).
 - Tarifa versionada pelo gestor: cada alteração cria uma versão nova com data de vigência, e uma tarifa específica do ponto tem prioridade sobre a da organização.
 
 ### Preço com fator de demanda da IA
@@ -169,6 +169,7 @@ O [`.env.example`](.env.example) documenta todas as variáveis. Preencha os valo
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` | Stripe em modo de teste; vazios desligam o ponto comercial |
 | `PAYMENT_HOLD_ENERGY_KWH`, `PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES` | valor da pré-autorização e prazo para o cartão ser autorizado |
 | `SEED_MANAGER_EMAIL`, `SEED_MANAGER_PASSWORD`, `SEED_DRIVER_EMAIL`, `SEED_DRIVER_PASSWORD` | contas de demonstração criadas pelo seed; as senhas são obrigatórias para rodar o seed |
+| `MEDIA_BASE_URL` | base das fotos dos pontos gravadas pelo seed (`<base>/points/<arquivo>.webp`); padrão `https://app.evchargeops.com.br/media` |
 
 ### 2. Instalação, banco e seed
 
@@ -178,7 +179,7 @@ npm run prisma:migrate     # prisma migrate dev: aplica as migrações no banco 
 npm run db:seed            # prisma db seed: cria o condomínio de demonstração
 ```
 
-O seed cria o Residencial Aclimação com três pontos, moradores, histórico de sessões e sessões anômalas. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
+O seed cria o Residencial Aclimação com três pontos (com foto), moradores, histórico de sessões e sessões anômalas. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
 
 Para regenerar o cliente do Prisma depois de mudar o schema: `npm run prisma:generate`.
 
