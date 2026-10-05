@@ -53,7 +53,7 @@ async function main(): Promise<void> {
     }
     await upsertDemoOrganization(prisma, organization);
     console.log(`Seeded organization ${organization.name}`);
-    const site = buildDemoSite(organization.id);
+    const site = buildDemoSite(organization.id, env.MEDIA_BASE_URL);
     await upsertDemoSite(prisma, site);
     console.log(`Seeded ${site.chargePoints.length} charge points and tariffs`);
 
@@ -115,7 +115,7 @@ async function main(): Promise<void> {
       `Seeded ${insertedAnomalies} of ${anomalies.length} anomalous sessions scored by ${mlUrl} with the rule fallback`,
     );
 
-    const network = buildDemoCommercialNetwork();
+    const network = buildDemoCommercialNetwork(env.MEDIA_BASE_URL);
     await upsertDemoCommercialNetwork(prisma, network);
     const networkHistory = buildDemoNetworkHistory({
       now,

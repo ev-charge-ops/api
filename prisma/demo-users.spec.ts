@@ -12,7 +12,20 @@ describe('parseSeedEnv', () => {
       ...passwords,
       SEED_MANAGER_EMAIL: 'manager@evchargeops.dev',
       SEED_DRIVER_EMAIL: 'driver@evchargeops.dev',
+      MEDIA_BASE_URL: 'https://app.evchargeops.com.br/media',
     });
+  });
+
+  it('takes a custom media base url without the trailing slash', () => {
+    expect(
+      parseSeedEnv({
+        ...passwords,
+        MEDIA_BASE_URL: 'https://media.example.com/demo/',
+      }).MEDIA_BASE_URL,
+    ).toBe('https://media.example.com/demo');
+    expect(() =>
+      parseSeedEnv({ ...passwords, MEDIA_BASE_URL: 'not a url' }),
+    ).toThrow(/MEDIA_BASE_URL/);
   });
 
   it('normalizes custom emails to lowercase', () => {
