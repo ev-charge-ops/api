@@ -10,6 +10,11 @@ import {
   deterministicId,
   type HistoryDriver,
 } from './demo-history.js';
+import {
+  DEFAULT_MEDIA_BASE_URL,
+  NETWORK_POINT_PHOTOS,
+  pointPhotoUrl,
+} from './demo-media.js';
 
 export const DEMO_DC_CHARGER_VENDOR = 'GoodWe HCA DC';
 export const DEMO_NETWORK_VISITOR_PROBABILITY = 0.12;
@@ -173,7 +178,11 @@ const OPERATORS: OperatorSpec[] = [
   },
 ];
 
-function buildPoint(operator: OperatorSpec, spec: PointSpec): DemoChargePoint {
+function buildPoint(
+  operator: OperatorSpec,
+  spec: PointSpec,
+  photoUrl: string,
+): DemoChargePoint {
   const isDc = spec.maxPowerKw >= DC_MIN_POWER_KW;
   const serialSuffix = spec.code.split('-')[1];
   return {
@@ -185,6 +194,7 @@ function buildPoint(operator: OperatorSpec, spec: PointSpec): DemoChargePoint {
     longitude: spec.longitude,
     maxPowerKw: spec.maxPowerKw,
     isOnline: spec.isOnline ?? true,
+    photoUrl,
     charger: {
       id: deterministicId(`demo-network-charger:${spec.code}`),
       serialNumber: isDc
@@ -198,7 +208,15 @@ function buildPoint(operator: OperatorSpec, spec: PointSpec): DemoChargePoint {
   };
 }
 
-export function buildDemoCommercialNetwork(): DemoOperator[] {
+export function buildDemoCommercialNetwork(
+  mediaBaseUrl = DEFAULT_MEDIA_BASE_URL,
+): DemoOperator[] {
+  let pointIndex = 0;
+  const nextPhotoUrl = () =>
+    pointPhotoUrl(
+      mediaBaseUrl,
+      NETWORK_POINT_PHOTOS[pointIndex++ % NETWORK_POINT_PHOTOS.length],
+    );
   return OPERATORS.map((operator) => ({
     id: deterministicId(`demo-network-operator:${operator.key}`),
     name: operator.name,
@@ -206,7 +224,9 @@ export function buildDemoCommercialNetwork(): DemoOperator[] {
       id: deterministicId(`demo-network-tariff:${operator.key}`),
       ...operator.tariff,
     },
-    chargePoints: operator.points.map((spec) => buildPoint(operator, spec)),
+    chargePoints: operator.points.map((spec) =>
+      buildPoint(operator, spec, nextPhotoUrl()),
+    ),
   }));
 }
 

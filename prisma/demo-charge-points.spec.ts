@@ -45,6 +45,22 @@ describe('buildDemoSite', () => {
     });
     expect(site.chargePoints[2].tariff).toMatchObject({ baseRateCents: 189 });
   });
+
+  it('gives every point a photo under the media base url', () => {
+    expect(
+      buildDemoSite(DEMO_ORGANIZATION_ID).chargePoints.map(
+        (point) => point.photoUrl,
+      ),
+    ).toEqual([
+      'https://app.evchargeops.com.br/media/points/garage-a.webp',
+      'https://app.evchargeops.com.br/media/points/charger-wall.webp',
+      'https://app.evchargeops.com.br/media/points/garage-b.webp',
+    ]);
+    expect(
+      buildDemoSite(DEMO_ORGANIZATION_ID, 'http://localhost:5173/media')
+        .chargePoints[0].photoUrl,
+    ).toBe('http://localhost:5173/media/points/garage-a.webp');
+  });
 });
 
 describe('upsertDemoSite', () => {
@@ -70,6 +86,10 @@ describe('upsertDemoSite', () => {
     });
 
     expect(chargePoint.upsert).toHaveBeenCalledTimes(3);
+    expect(chargePoint.upsert.mock.calls[1][0]).toMatchObject({
+      update: { photoUrl: site.chargePoints[1].photoUrl },
+      create: { photoUrl: site.chargePoints[1].photoUrl },
+    });
     expect(charger.upsert).toHaveBeenCalledTimes(3);
     expect(tariff.upsert).toHaveBeenCalledTimes(2);
     expect(tariff.upsert.mock.calls[0][0].create).toMatchObject({

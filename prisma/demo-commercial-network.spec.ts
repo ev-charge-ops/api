@@ -83,6 +83,27 @@ describe('buildDemoCommercialNetwork', () => {
     ).toBeGreaterThanOrEqual(4);
   });
 
+  it('cycles the network photos through every point', () => {
+    expect(points.map((point) => point.photoUrl)).toEqual(
+      Array.from(
+        { length: 12 },
+        (_, index) =>
+          `https://app.evchargeops.com.br/media/points/${
+            [
+              'garage-a.webp',
+              'garage-b.webp',
+              'charger-wall.webp',
+              'charger-wall-b.webp',
+            ][index % 4]
+          }`,
+      ),
+    );
+    expect(
+      buildDemoCommercialNetwork('https://media.example.com')[0].chargePoints[1]
+        .photoUrl,
+    ).toBe('https://media.example.com/points/garage-b.webp');
+  });
+
   it('keeps a single offline point and gives every operator a dynamic tariff', () => {
     expect(
       points
@@ -136,6 +157,9 @@ describe('upsertDemoCommercialNetwork', () => {
       .map(([args]) => args)
       .find((args) => args.update.code === 'EPS-02');
     expect(offline.update.isOnline).toBe(false);
+    expect(offline.update.photoUrl).toBe(
+      'https://app.evchargeops.com.br/media/points/garage-b.webp',
+    );
     expect(offline.create.organizationId).toBe(network[1].id);
   });
 });
