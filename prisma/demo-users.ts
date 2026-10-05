@@ -2,6 +2,7 @@ import { hash } from '@node-rs/argon2';
 import { z } from 'zod';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import { Role } from '../src/generated/prisma/enums.js';
+import { DEFAULT_MEDIA_BASE_URL } from './demo-media.js';
 
 const seedEnvSchema = z.object({
   SEED_MANAGER_EMAIL: z
@@ -14,6 +15,10 @@ const seedEnvSchema = z.object({
     .default('driver@evchargeops.dev')
     .transform((email) => email.toLowerCase()),
   SEED_DRIVER_PASSWORD: z.string().min(8),
+  MEDIA_BASE_URL: z
+    .url()
+    .default(DEFAULT_MEDIA_BASE_URL)
+    .transform((url) => url.replace(/\/+$/, '')),
 });
 
 export type SeedEnv = z.infer<typeof seedEnvSchema>;
