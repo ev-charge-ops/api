@@ -1,5 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Role } from '../../../generated/prisma/enums.js';
+import {
+  LocationMode,
+  PaymentMode,
+  Role,
+} from '../../../generated/prisma/enums.js';
 import type { User } from '../../../generated/prisma/client.js';
 
 export class UserResponseDto {
@@ -24,6 +28,28 @@ export class UserResponseDto {
   })
   hasPassword: boolean;
 
+  @ApiProperty({
+    enum: PaymentMode,
+    enumName: 'PaymentMode',
+    description:
+      'Stripe mode used for the card payments of this user: TEST (test cards) or LIVE (real cards)',
+  })
+  paymentMode: PaymentMode;
+
+  @ApiProperty({
+    enum: LocationMode,
+    enumName: 'LocationMode',
+    description:
+      'Where the app takes the user position from: DEMO (fixed demo location) or DEVICE (device GPS)',
+  })
+  locationMode: LocationMode;
+
+  @ApiProperty({
+    description:
+      'Whether captured card payments of this user are refunded in full right after the capture',
+  })
+  autoRefund: boolean;
+
   static fromEntity(user: User): UserResponseDto {
     return Object.assign(new UserResponseDto(), {
       id: user.id,
@@ -32,6 +58,9 @@ export class UserResponseDto {
       role: user.role,
       emailVerified: user.emailVerifiedAt !== null,
       hasPassword: user.passwordHash !== null,
+      paymentMode: user.paymentMode,
+      locationMode: user.locationMode,
+      autoRefund: user.autoRefund,
     });
   }
 }

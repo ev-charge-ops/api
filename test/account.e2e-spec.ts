@@ -77,6 +77,9 @@ describe('Account (e2e)', () => {
       role: 'DRIVER',
       emailVerified: false,
       hasPassword: true,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
     });
 
     const me = await request(server())

@@ -19,6 +19,9 @@ const user: User = {
   role: 'DRIVER',
   emailVerifiedAt: null,
   stripeCustomerId: null,
+  paymentMode: 'TEST',
+  locationMode: 'DEMO',
+  autoRefund: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -112,6 +115,9 @@ describe('EmailVerificationService', () => {
       ...user,
       emailVerifiedAt: new Date(),
       stripeCustomerId: null,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
     });
     await service.resend('user-1');
     expect(outbox.messages).toHaveLength(1);
