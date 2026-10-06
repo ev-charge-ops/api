@@ -120,6 +120,67 @@ export class RecentAnomalyDto {
   anomalyReviewedById: string | null;
 }
 
+export class MonthComparisonDto {
+  @ApiProperty({ example: '2026-07' })
+  month: string;
+
+  @ApiProperty({ example: 1190.2 })
+  energyKwh: number;
+
+  @ApiProperty({ example: 96 })
+  sessionsCount: number;
+
+  @ApiProperty({
+    example: 121_870,
+    description: 'Energy cost of the sessions started in the month',
+  })
+  energyCents: number;
+
+  @ApiProperty({
+    example: 128_420,
+    description:
+      'Total of the sessions started in the month (energy plus idle fees)',
+  })
+  totalCents: number;
+}
+
+export class MonthPeakDto {
+  @ApiProperty({
+    example: 36,
+    description:
+      'Highest simultaneous charging demand of the sessions started in the month, without the common area reserve',
+  })
+  demandKw: number;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description: 'When the peak started, null without charging in the month',
+  })
+  at: Date | null;
+}
+
+export class OverviewActiveSessionDto {
+  @ApiProperty({ format: 'uuid' })
+  sessionId: string;
+
+  @ApiProperty({
+    enum: ChargingSessionStatus,
+    enumName: 'ChargingSessionStatus',
+  })
+  status: ChargingSessionStatus;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'When the free grace period ends (set once charging ended, in GRACE and IDLE); the idle fee starts at this instant',
+  })
+  graceEndsAt: Date | null;
+}
+
 export class OverviewChargePointDto {
   @ApiProperty({ format: 'uuid' })
   id: string;
@@ -155,6 +216,20 @@ export class OverviewChargePointDto {
       'Current price of the point; null when no tariff is configured',
   })
   pricing: ChargePointPricingDto | null;
+
+  @ApiProperty({
+    example: 6.4,
+    description:
+      'Power delivered now by the session charging at the point (from its latest telemetry), 0 when it is not charging',
+  })
+  currentPowerKw: number;
+
+  @ApiProperty({
+    type: OverviewActiveSessionDto,
+    nullable: true,
+    description: 'Open session at the point, null when it is free',
+  })
+  activeSession: OverviewActiveSessionDto | null;
 }
 
 export class OrganizationOverviewResponseDto {
@@ -166,6 +241,37 @@ export class OrganizationOverviewResponseDto {
 
   @ApiProperty({ example: 102 })
   sessionsCount: number;
+
+  @ApiProperty({
+    example: 128_930,
+    description:
+      'Energy cost of the sessions started in the month, every regime',
+  })
+  energyCents: number;
+
+  @ApiProperty({
+    example: 136_210,
+    description:
+      'Total of the sessions started in the month (energy plus idle fees), every regime',
+  })
+  totalCents: number;
+
+  @ApiProperty({
+    type: MonthComparisonDto,
+    description:
+      'Same totals for the previous month, for month over month deltas',
+  })
+  previousMonth: MonthComparisonDto;
+
+  @ApiProperty({
+    example: 14,
+    description:
+      'Sessions of the month at commercial points of the organization or by drivers who are not members',
+  })
+  visitorSessionsCount: number;
+
+  @ApiProperty({ type: MonthPeakDto })
+  monthPeak: MonthPeakDto;
 
   @ApiProperty({
     example: 1,
