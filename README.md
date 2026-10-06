@@ -37,6 +37,7 @@ As contas de demonstração estão descritas no [README do `docs`](https://githu
 - Organizações (o condomínio) com papéis de gestor e motorista, unidade do morador e convites por e-mail com deep link.
 - E-mails transacionais pelo Resend ou, em desenvolvimento, impressos no log ([ADR 0009](https://github.com/ev-charge-ops/docs/blob/main/adr/0009-domain-and-email.md)).
 - Rate limit por IP, mais restrito nas rotas de autenticação. Ele fica em memória por instância.
+- Modos por usuário, devolvidos em `GET /auth/me` e no `user` do login e do refresh: `paymentMode` (`TEST` ou `LIVE`, modo do Stripe), `locationMode` (`DEMO`, localização fixa da demonstração, ou `DEVICE`, GPS do aparelho) e `autoRefund` (estorno automático após a captura). O padrão é `TEST`, `DEMO` e `false`.
 
 ### Pontos de recarga e tarifas
 
@@ -172,6 +173,7 @@ O [`.env.example`](.env.example) documenta todas as variáveis. Preencha os valo
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` | Stripe em modo de teste; vazios desligam o ponto comercial |
 | `PAYMENT_HOLD_ENERGY_KWH`, `PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES` | valor da pré-autorização e prazo para o cartão ser autorizado |
 | `SEED_MANAGER_EMAIL`, `SEED_MANAGER_PASSWORD`, `SEED_DRIVER_EMAIL`, `SEED_DRIVER_PASSWORD` | contas de demonstração criadas pelo seed; as senhas são obrigatórias para rodar o seed |
+| `SEED_REVIEWER_EMAIL`, `SEED_REVIEWER_PASSWORD` | conta da revisão da App Store (padrão `appreview@evchargeops.com.br`); sem a senha o seed pula essa conta |
 | `MEDIA_BASE_URL` | base das fotos dos pontos gravadas pelo seed (`<base>/points/<arquivo>.webp`); padrão `https://app.evchargeops.com.br/media` |
 
 ### 2. Instalação, banco e seed
@@ -182,7 +184,7 @@ npm run prisma:migrate     # prisma migrate dev: aplica as migrações no banco 
 npm run db:seed            # prisma db seed: cria o condomínio de demonstração
 ```
 
-O seed cria o Residencial Aclimação com três pontos (com foto), moradores, histórico de sessões e sessões anômalas. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
+O seed cria o Residencial Aclimação com três pontos (com foto), moradores, histórico de sessões e sessões anômalas. Com `SEED_REVIEWER_PASSWORD` definido, ele também cria a conta da revisão da App Store: motorista "Revisor App Store", e-mail verificado, morador da unidade "Revisão · 01" e com `paymentMode = LIVE`, `locationMode = DEVICE` e `autoRefund = true`. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
 
 Para regenerar o cliente do Prisma depois de mudar o schema: `npm run prisma:generate`.
 
