@@ -99,6 +99,7 @@ describe('Cost sharing (e2e)', () => {
         totalCents: fixture.energyCostCents + idleFeeCents,
         anomalyScore: fixture.anomalyScore ?? null,
         isAnomaly: fixture.isAnomaly ?? null,
+        anomalyReviewStatus: fixture.isAnomaly ? 'PENDING_REVIEW' : null,
       },
     });
   }
@@ -480,6 +481,7 @@ describe('Cost sharing (e2e)', () => {
         { week: 5, energyKwh: 0 },
       ],
       anomaliesCount: 2,
+      anomaliesPendingReviewCount: 2,
       recentAnomalies: [
         {
           sessionId: expect.any(String),
@@ -499,6 +501,10 @@ describe('Cost sharing (e2e)', () => {
           totalCents: 2000,
           anomalyScore: 0.6207,
           anomalyModelVersion: null,
+          anomalyReviewStatus: 'PENDING_REVIEW',
+          anomalyReviewNote: null,
+          anomalyReviewedAt: null,
+          anomalyReviewedById: null,
         },
         expect.objectContaining({
           chargePoint: {
@@ -550,7 +556,11 @@ describe('Cost sharing (e2e)', () => {
 
   it('lists the latest anomalies up to the end of the month', async () => {
     const july = await get(path('overview?month=2026-07'), manager).expect(200);
-    expect(july.body).toMatchObject({ anomaliesCount: 0, recentAnomalies: [] });
+    expect(july.body).toMatchObject({
+      anomaliesCount: 0,
+      anomaliesPendingReviewCount: 0,
+      recentAnomalies: [],
+    });
     expect(july.body.chargePoints).toHaveLength(2);
 
     const october = await get(path('overview'), manager).expect(200);

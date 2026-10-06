@@ -114,6 +114,10 @@ export function toDomain(record: ChargingSessionWithPoint): ChargingSession {
     anomalyScore: record.anomalyScore?.toNumber() ?? null,
     isAnomaly: record.isAnomaly,
     anomalyModelVersion: record.anomalyModelVersion,
+    anomalyReviewStatus: record.anomalyReviewStatus,
+    anomalyReviewNote: record.anomalyReviewNote,
+    anomalyReviewedAt: record.anomalyReviewedAt,
+    anomalyReviewedById: record.anomalyReviewedById,
     payment: record.payment ? paymentToDomain(record.payment) : null,
     version: record.updatedAt,
   });
@@ -175,6 +179,10 @@ export function toStateData(props: ChargingSessionProps) {
       props.anomalyScore === null ? null : props.anomalyScore.toFixed(4),
     isAnomaly: props.isAnomaly,
     anomalyModelVersion: props.anomalyModelVersion,
+    anomalyReviewStatus: props.anomalyReviewStatus,
+    anomalyReviewNote: props.anomalyReviewNote,
+    anomalyReviewedAt: props.anomalyReviewedAt,
+    anomalyReviewedById: props.anomalyReviewedById,
   };
 }
 
@@ -263,9 +271,19 @@ export function toOrganizationDetailResponse(
     toDetailResponse(session, readings, timeline),
     {
       driver: { id: driver.id, name: driver.name },
-      anomalyModelVersion: session.toProps().anomalyModelVersion,
+      ...anomalyFieldsOf(session.toProps()),
     },
   );
+}
+
+function anomalyFieldsOf(props: ChargingSessionProps) {
+  return {
+    anomalyModelVersion: props.anomalyModelVersion,
+    anomalyReviewStatus: props.anomalyReviewStatus,
+    anomalyReviewNote: props.anomalyReviewNote,
+    anomalyReviewedAt: props.anomalyReviewedAt,
+    anomalyReviewedById: props.anomalyReviewedById,
+  };
 }
 
 function responseFields(

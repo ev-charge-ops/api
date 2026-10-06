@@ -295,7 +295,23 @@ describe('insertDemoAnomalies', () => {
       anomalyScore: 0.6578,
       isAnomaly: true,
       anomalyModelVersion: 'v1',
+      anomalyReviewStatus: 'PENDING_REVIEW',
     });
+  });
+
+  it('leaves sessions that are not flagged out of the review queue', async () => {
+    const { prisma, createMany } = fakePrisma([]);
+
+    await insertDemoAnomalies(
+      prisma,
+      anomalies,
+      new FixedScorer({ score: 0.12, isAnomaly: false, modelVersion: 'v1' }),
+    );
+
+    const [{ data }] = createMany.mock.calls[0] as unknown as [
+      { data: { anomalyReviewStatus: string | null }[] },
+    ];
+    expect(data.every((row) => row.anomalyReviewStatus === null)).toBe(true);
   });
 
   it('does nothing on a database that already has them', async () => {
