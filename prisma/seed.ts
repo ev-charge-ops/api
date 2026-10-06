@@ -26,6 +26,11 @@ import {
   buildDemoOrganization,
   upsertDemoOrganization,
 } from './demo-organization.js';
+import {
+  buildDemoReviewer,
+  parseReviewerEnv,
+  upsertDemoReviewer,
+} from './demo-reviewer.js';
 import { buildDemoUsers, parseSeedEnv, upsertDemoUsers } from './demo-users.js';
 
 const DEFAULT_ML_URL = 'https://ml.evchargeops.com.br';
@@ -39,6 +44,8 @@ async function main(): Promise<void> {
 
   const env = parseSeedEnv(process.env);
   const users = buildDemoUsers(env);
+  const reviewerEnv = parseReviewerEnv(process.env);
+  const reviewer = buildDemoReviewer(reviewerEnv);
   const organization = buildDemoOrganization({
     managerEmail: env.SEED_MANAGER_EMAIL,
     driverEmail: env.SEED_DRIVER_EMAIL,
@@ -53,6 +60,16 @@ async function main(): Promise<void> {
     }
     await upsertDemoOrganization(prisma, organization);
     console.log(`Seeded organization ${organization.name}`);
+    if (reviewer) {
+      await upsertDemoReviewer(prisma, reviewer, organization.id);
+      console.log(
+        `Seeded App Review DRIVER ${reviewer.email} with LIVE payments, DEVICE location and auto refund`,
+      );
+    } else {
+      console.log(
+        `Skipped App Review account ${reviewerEnv.SEED_REVIEWER_EMAIL}: SEED_REVIEWER_PASSWORD is not set`,
+      );
+    }
     const site = buildDemoSite(organization.id, env.MEDIA_BASE_URL);
     await upsertDemoSite(prisma, site);
     console.log(`Seeded ${site.chargePoints.length} charge points and tariffs`);
