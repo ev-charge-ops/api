@@ -458,6 +458,17 @@ describe('Cost sharing (e2e)', () => {
       month: '2026-08',
       energyKwh: 32.652,
       sessionsCount: 5,
+      energyCents: 4279,
+      totalCents: 7429,
+      previousMonth: {
+        month: '2026-07',
+        energyKwh: 0,
+        sessionsCount: 0,
+        energyCents: 0,
+        totalCents: 0,
+      },
+      visitorSessionsCount: 1,
+      monthPeak: { demandKw: 29, at: '2026-08-11T00:00:00.000Z' },
       activeSessionsCount: 0,
       costSharingTotalCents: 15_929,
       commercialRevenueCents: 2000,
@@ -526,6 +537,8 @@ describe('Cost sharing (e2e)', () => {
           maxPowerKw: 7,
           photoUrl: PHOTO_URL,
           status: 'AVAILABLE',
+          currentPowerKw: 0,
+          activeSession: null,
           pricing: {
             pricePerKwhCents: 89,
             utilityRateCents: 89,
@@ -565,6 +578,17 @@ describe('Cost sharing (e2e)', () => {
 
     const october = await get(path('overview'), manager).expect(200);
     expect(october.body.anomaliesCount).toBe(0);
+    expect(october.body).toMatchObject({
+      sessionsCount: 0,
+      monthPeak: { demandKw: 0, at: null },
+      previousMonth: {
+        month: '2026-09',
+        energyKwh: 7,
+        sessionsCount: 1,
+        energyCents: 623,
+        totalCents: 623,
+      },
+    });
     expect(
       october.body.recentAnomalies.map(
         (item: { anomalyScore: number }) => item.anomalyScore,
