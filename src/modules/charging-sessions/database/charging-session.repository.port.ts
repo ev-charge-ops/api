@@ -32,6 +32,10 @@ export abstract class ChargingSessionRepository {
 
   abstract findOpenByUser(userId: string): Promise<ChargingSession | null>;
 
+  abstract findOpenByOrganization(
+    organizationId: string,
+  ): Promise<ChargingSession[]>;
+
   abstract listByUser(
     userId: string,
     page: { skip: number; take: number },
