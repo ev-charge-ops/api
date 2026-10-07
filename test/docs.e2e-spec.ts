@@ -44,6 +44,7 @@ describe('OpenAPI docs (e2e)', () => {
       'DELETE /organizations/{organizationId}/invites/{inviteId} revokeInvite',
       'GET /auth/me getMe',
       'GET /charge-points listChargePoints',
+      'GET /charge-points/clusters listChargePointClusters',
       'GET /charge-points/{chargePointId} getChargePoint',
       'GET /charge-points/{chargePointId}/queue/me getMyQueueEntry',
       'GET /invites/{token} getInvitePreview',
