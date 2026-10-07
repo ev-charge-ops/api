@@ -26,6 +26,10 @@ export class UsersService {
     return this.prisma.user.create({ data: input });
   }
 
+  updateName(id: string, name: string): Promise<User> {
+    return this.prisma.user.update({ where: { id }, data: { name } });
+  }
+
   async updatePasswordHash(id: string, passwordHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id }, data: { passwordHash } });
   }

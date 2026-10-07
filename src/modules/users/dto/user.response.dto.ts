@@ -18,6 +18,12 @@ export class UserResponseDto {
   @ApiProperty({ description: 'Whether the user confirmed their email' })
   emailVerified: boolean;
 
+  @ApiProperty({
+    description:
+      'Whether the user has a password; accounts created with Google, Apple or an email code may not',
+  })
+  hasPassword: boolean;
+
   static fromEntity(user: User): UserResponseDto {
     return Object.assign(new UserResponseDto(), {
       id: user.id,
@@ -25,6 +31,7 @@ export class UserResponseDto {
       email: user.email,
       role: user.role,
       emailVerified: user.emailVerifiedAt !== null,
+      hasPassword: user.passwordHash !== null,
     });
   }
 }
