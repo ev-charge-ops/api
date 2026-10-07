@@ -247,6 +247,7 @@ model ChargingSession {
   lockedRateCents       Int
   demandFactor          Decimal               @db.Decimal(4, 2)
   demandFactorSource    DemandFactorSource
+  demandModelVersion    String?
   idleFeeCentsPerMinute Int
   idleFeeCapCents       Int
   gracePeriodMinutes    Int
@@ -263,6 +264,8 @@ model ChargingSession {
   idleFeeCents          Int                   @default(0)
   totalCents            Int                   @default(0)
   anomalyScore          Decimal?              @db.Decimal(5, 4)
+  isAnomaly             Boolean?
+  anomalyModelVersion   String?
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   readings              MeterReading[]
