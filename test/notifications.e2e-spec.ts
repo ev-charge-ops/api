@@ -13,7 +13,8 @@ import {
 import { ChargerGateway } from './../src/modules/charger-gateway/charger-gateway.port.js';
 import { PushOutbox } from './../src/modules/notifications/push/push-outbox.js';
 import { FakePaymentGateway } from './../src/modules/payments/adapters/fake-payment.adapter.js';
-import { PaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
+import { DisabledPaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
+import { PaymentGateways } from './../src/modules/payments/payment-gateways.js';
 
 vi.hoisted(() => {
   process.env.AUTH_THROTTLE_LIMIT = '1000';
@@ -119,8 +120,13 @@ describe('Notifications (e2e)', () => {
     })
       .overrideProvider(Clock)
       .useValue(clock)
-      .overrideProvider(PaymentGateway)
-      .useValue(payments)
+      .overrideProvider(PaymentGateways)
+      .useValue(
+        new PaymentGateways({
+          TEST: payments,
+          LIVE: new DisabledPaymentGateway(),
+        }),
+      )
       .compile();
 
     app = moduleFixture.createNestApplication();

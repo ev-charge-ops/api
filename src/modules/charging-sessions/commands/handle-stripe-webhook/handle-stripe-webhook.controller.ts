@@ -31,7 +31,7 @@ export class HandleStripeWebhookController {
   @ApiOperation({
     operationId: 'handleStripeWebhook',
     summary:
-      'Stripe webhook (payment_intent.amount_capturable_updated, canceled, payment_failed, succeeded). Verifies the signature over the raw body and reconciles the session with the PaymentIntent; duplicates are ignored',
+      'Stripe TEST mode webhook (payment_intent.amount_capturable_updated, canceled, payment_failed, succeeded). Verifies the signature over the raw body with STRIPE_WEBHOOK_SECRET and reconciles the TEST mode session with the PaymentIntent; duplicates are ignored',
   })
   @ApiHeader({ name: 'stripe-signature', required: true })
   @ApiOkResponse({ type: WebhookReceiptDto })
@@ -45,6 +45,30 @@ export class HandleStripeWebhookController {
     @Req() request: RawBodyRequest<Request>,
     @Headers('stripe-signature') signature: string | undefined,
   ): Promise<WebhookReceiptDto> {
-    return this.service.execute(request.rawBody, signature);
+    return this.service.execute('TEST', request.rawBody, signature);
+  }
+
+  @Public()
+  @Post('webhook/live')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    operationId: 'handleStripeLiveWebhook',
+    summary:
+      'Stripe LIVE mode webhook with the same events as handleStripeWebhook. Verifies the signature over the raw body with STRIPE_LIVE_WEBHOOK_SECRET and reconciles the LIVE mode session with the PaymentIntent; duplicates are ignored',
+  })
+  @ApiHeader({ name: 'stripe-signature', required: true })
+  @ApiOkResponse({ type: WebhookReceiptDto })
+  @ApiBadRequestResponse({
+    description: 'INVALID_WEBHOOK_SIGNATURE',
+  })
+  @ApiServiceUnavailableResponse({
+    description:
+      'PAYMENTS_UNAVAILABLE: the live webhook secret is not configured',
+  })
+  handleStripeLiveWebhook(
+    @Req() request: RawBodyRequest<Request>,
+    @Headers('stripe-signature') signature: string | undefined,
+  ): Promise<WebhookReceiptDto> {
+    return this.service.execute('LIVE', request.rawBody, signature);
   }
 }

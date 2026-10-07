@@ -19,6 +19,8 @@ function payment(
   return {
     intentId: 'pi_1',
     customerId: 'cus_1',
+    mode: 'TEST',
+    autoRefund: false,
     status,
     currency: 'BRL',
     authorizedCents,
@@ -27,6 +29,8 @@ function payment(
     authorizedAt: null,
     capturedAt: null,
     canceledAt: null,
+    refundedCents: null,
+    refundedAt: null,
   };
 }
 
@@ -152,5 +156,23 @@ describe('settlementFor', () => {
   it('has nothing to settle once captured or canceled', () => {
     expect(settlementFor(payment(PaymentStatus.CAPTURED), 1041)).toBeNull();
     expect(settlementFor(payment(PaymentStatus.CANCELED), 0)).toBeNull();
+  });
+
+  it('refunds the captured amount of auto refund payments', () => {
+    const captured = {
+      ...payment(PaymentStatus.CAPTURED),
+      mode: 'LIVE' as const,
+      autoRefund: true,
+      capturedCents: 1041,
+    };
+
+    expect(settlementFor(captured, 1041)).toEqual({
+      action: 'REFUND',
+      amountCents: 1041,
+    });
+    expect(
+      settlementFor({ ...captured, status: PaymentStatus.REFUNDED }, 1041),
+    ).toBeNull();
+    expect(settlementFor({ ...captured, capturedCents: 0 }, 0)).toBeNull();
   });
 });

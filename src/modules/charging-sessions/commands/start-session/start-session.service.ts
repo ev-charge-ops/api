@@ -83,7 +83,10 @@ export class StartSessionService {
         'Charge point is reserved for the next driver in the queue',
       );
     }
-    if (quote.type === 'COMMERCIAL' && !this.payments.enabled) {
+    if (
+      quote.type === 'COMMERCIAL' &&
+      !(await this.payments.availableFor(userId))
+    ) {
       throw paymentsUnavailable();
     }
     const vehicle = await this.vehicleFor(limit, chargerSerialNumber);

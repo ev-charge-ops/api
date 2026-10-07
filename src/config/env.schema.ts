@@ -61,6 +61,9 @@ export const envSchema = z
     STRIPE_SECRET_KEY: z.string().trim().default(''),
     STRIPE_WEBHOOK_SECRET: z.string().trim().default(''),
     STRIPE_PUBLISHABLE_KEY: z.string().trim().default(''),
+    STRIPE_LIVE_SECRET_KEY: z.string().trim().default(''),
+    STRIPE_LIVE_WEBHOOK_SECRET: z.string().trim().default(''),
+    STRIPE_LIVE_PUBLISHABLE_KEY: z.string().trim().default(''),
     PAYMENT_HOLD_ENERGY_KWH: z.coerce.number().positive().max(500).default(60),
     PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: z.coerce
       .number()
