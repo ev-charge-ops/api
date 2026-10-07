@@ -8,7 +8,7 @@ export function createOriginMatcher(patterns: string[]): OriginMatcher {
 function toRegExp(pattern: string): RegExp {
   const source = pattern
     .split('*')
-    .map((part) => part.replace(/[.+?^${}()|[\]\/]/g, '\$&'))
-    .join('[^/]*');
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, '\\$&'))
+    .join('[^/.]*');
   return new RegExp(`^${source}$`);
 }
