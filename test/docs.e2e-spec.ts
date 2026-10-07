@@ -39,8 +39,11 @@ describe('OpenAPI docs (e2e)', () => {
       ),
     );
     expect(operations.sort()).toEqual([
+      'DELETE /organizations/{organizationId}/invites/{inviteId} revokeInvite',
       'GET /auth/me getMe',
+      'GET /invites/{token} getInvitePreview',
       'GET /me/organizations listMyOrganizations',
+      'GET /organizations/{organizationId}/invites listInvites',
       'GET /organizations/{organizationId}/members listOrganizationMembers',
       'POST /auth/email-login/request requestEmailLogin',
       'POST /auth/email-login/verify verifyEmailLogin',
@@ -54,6 +57,10 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /auth/password/reset resetPassword',
       'POST /auth/refresh refresh',
       'POST /auth/register register',
+      'POST /invites/{token}/accept acceptInvite',
+      'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
+      'POST /organizations/{organizationId}/invites createInvite',
+      'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
     ]);
     expect(response.body.components.securitySchemes).toHaveProperty('bearer');
     expect(response.body.components.schemas.Role).toEqual({
