@@ -81,6 +81,8 @@ Implementado em [`src/modules/payments`](src/modules/payments) e [`session-payme
 - A API cria um PaymentIntent com captura manual em **modo de teste** do Stripe e devolve os parâmetros do PaymentSheet para o app. O cartão é digitado no componente do Stripe e não passa pela API.
 - O webhook `POST /payments/stripe/webhook` (assinatura verificada e idempotente) ou a confirmação feita pelo app liberam a sessão. No encerramento, a API captura só o valor consumido e cancela o bloqueio quando não há o que cobrar.
 - Sem `STRIPE_SECRET_KEY`, iniciar sessão no ponto comercial responde `503 PAYMENTS_UNAVAILABLE`, e os pontos privados continuam funcionando.
+- **Dois modos do Stripe:** o `paymentMode` do usuário (`TEST` por padrão, `LIVE` na conta da revisão da App Store) escolhe o gateway no início da sessão, e o modo fica gravado no pagamento (`payment.mode`). O modo `LIVE` usa `STRIPE_LIVE_SECRET_KEY`, `STRIPE_LIVE_WEBHOOK_SECRET` e `STRIPE_LIVE_PUBLISHABLE_KEY`, tem cliente Stripe próprio (`User.stripeLiveCustomerId`) e webhook próprio, `POST /payments/stripe/webhook/live`. Sem as chaves de produção, só os usuários `LIVE` recebem `503 PAYMENTS_UNAVAILABLE`.
+- **Estorno automático:** quando o pagamento foi aberto por um usuário com `autoRefund`, a API estorna o valor inteiro logo depois da captura. O pagamento fica `REFUNDED`, com `refundedCents` e `refundedAt` na resposta da sessão.
 
 ### Rateio mensal e visão geral
 
@@ -171,6 +173,7 @@ O [`.env.example`](.env.example) documenta todas as variáveis. Preencha os valo
 | `CHARGER_DRIVER`, `SIMULATION_SPEED` | adapter do carregador (`mock`) e aceleração da simulação |
 | `ML_URL` | serviço de IA; vazio usa as regras no fator de demanda e deixa as sessões sem score de anomalia |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` | Stripe em modo de teste; vazios desligam o ponto comercial |
+| `STRIPE_LIVE_SECRET_KEY`, `STRIPE_LIVE_WEBHOOK_SECRET`, `STRIPE_LIVE_PUBLISHABLE_KEY` | Stripe em modo de produção, só para usuários com `paymentMode = LIVE`; vazios desligam o pagamento só para eles |
 | `PAYMENT_HOLD_ENERGY_KWH`, `PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES` | valor da pré-autorização e prazo para o cartão ser autorizado |
 | `SEED_MANAGER_EMAIL`, `SEED_MANAGER_PASSWORD`, `SEED_DRIVER_EMAIL`, `SEED_DRIVER_PASSWORD` | contas de demonstração criadas pelo seed; as senhas são obrigatórias para rodar o seed |
 | `SEED_REVIEWER_EMAIL`, `SEED_REVIEWER_PASSWORD` | conta da revisão da App Store (padrão `appreview@evchargeops.com.br`); sem a senha o seed pula essa conta |
