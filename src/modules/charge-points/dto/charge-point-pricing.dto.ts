@@ -27,6 +27,9 @@ export class ChargePointPricingDto {
   @ApiProperty({ enum: DemandFactorSource, enumName: 'DemandFactorSource' })
   demandFactorSource: DemandFactorSource;
 
+  @ApiProperty({ type: String, nullable: true, example: null })
+  demandModelVersion: string | null;
+
   @ApiProperty({
     description:
       'False on private points, where the factor is informational only (no margin on energy)',

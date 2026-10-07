@@ -76,6 +76,7 @@ export class StartSessionService {
       lockedRateCents: pricePerKwhCents,
       demandFactor: quote.demand.factor,
       demandFactorSource: quote.demand.source,
+      demandModelVersion: quote.demand.modelVersion,
       idleFeeCentsPerMinute: tariff.idleFeeCentsPerMinute,
       idleFeeCapCents: tariff.idleFeeCapCents,
       gracePeriodMinutes: tariff.gracePeriodMinutes,

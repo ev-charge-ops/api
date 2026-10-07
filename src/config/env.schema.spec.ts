@@ -27,7 +27,18 @@ describe('validateEnv', () => {
       GOOGLE_CLIENT_SECRET: '',
       CHARGER_DRIVER: 'mock',
       SIMULATION_SPEED: 60,
+      ML_URL: '',
     });
+  });
+
+  it('accepts an ML service URL without the trailing slash', () => {
+    expect(
+      validateEnv({ ...validEnv, ML_URL: 'https://ml.evchargeops.com.br/' })
+        .ML_URL,
+    ).toBe('https://ml.evchargeops.com.br');
+    expect(() => validateEnv({ ...validEnv, ML_URL: 'not a url' })).toThrow(
+      /ML_URL/,
+    );
   });
 
   it('rejects a simulation speed below real time', () => {

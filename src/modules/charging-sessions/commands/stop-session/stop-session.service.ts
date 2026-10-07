@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../common/clock/clock.js';
 import { ChargerGateway } from '../../../charger-gateway/charger-gateway.port.js';
+import { AnomalyScorer } from '../../../intelligence/anomaly/anomaly-scorer.port.js';
 import {
   SessionErrorCode,
   sessionConflict,
@@ -16,6 +17,7 @@ import {
 import { SessionStatus } from '../../domain/session-status.js';
 import type { SessionResponseDto } from '../../dto/session.response.dto.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
+import { sessionFeatures } from './session-features.js';
 
 @Injectable()
 export class StopSessionService {
@@ -23,6 +25,7 @@ export class StopSessionService {
     private readonly sessions: ChargingSessionRepository,
     private readonly synchronizer: SessionSynchronizer,
     private readonly gateway: ChargerGateway,
+    private readonly anomalyScorer: AnomalyScorer,
     private readonly clock: Clock,
   ) {}
 
@@ -61,7 +64,19 @@ export class StopSessionService {
     if (!(await this.sessions.save(session, readings))) {
       throw alreadyEnded();
     }
+    await this.scoreAnomaly(session);
     return toResponse(session);
+  }
+
+  private async scoreAnomaly(session: ChargingSession): Promise<void> {
+    const result = await this.anomalyScorer.score(
+      sessionFeatures(session.toProps()),
+    );
+    if (!result) {
+      return;
+    }
+    session.recordAnomaly(result);
+    await this.sessions.save(session, []);
   }
 
   private async stopCharger(session: ChargingSession): Promise<void> {
