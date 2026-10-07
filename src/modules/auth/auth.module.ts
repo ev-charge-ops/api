@@ -12,6 +12,7 @@ import { EmailVerificationService } from './email-verification.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OneTimeTokenService } from './one-time-token.service.js';
 import { PasswordService } from './password.service.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 
 @Module({
@@ -39,6 +40,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
     RefreshTokenService,
     OneTimeTokenService,
     EmailVerificationService,
+    PasswordResetService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

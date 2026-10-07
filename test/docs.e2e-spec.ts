@@ -44,6 +44,8 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /auth/email-verification/resend resendEmailVerification',
       'POST /auth/login login',
       'POST /auth/logout logout',
+      'POST /auth/password/forgot forgotPassword',
+      'POST /auth/password/reset resetPassword',
       'POST /auth/refresh refresh',
       'POST /auth/register register',
     ]);
