@@ -7,6 +7,10 @@ import {
 } from './database/notifications.repository.port.js';
 import { PushDeliveryStatus, PushSender } from './push/push-sender.port.js';
 
+export interface NotifyOptions {
+  push?: boolean;
+}
+
 @Injectable()
 export class Notifier {
   private readonly logger = new Logger(Notifier.name);
@@ -17,7 +21,10 @@ export class Notifier {
     private readonly clock: Clock,
   ) {}
 
-  async notify(notification: NewNotification): Promise<boolean> {
+  async notify(
+    notification: NewNotification,
+    { push = true }: NotifyOptions = {},
+  ): Promise<boolean> {
     let created: NotificationRecord | null;
     try {
       created = await this.repository.create(notification, this.clock.now());
@@ -30,7 +37,9 @@ export class Notifier {
     if (!created) {
       return false;
     }
-    await this.push(created);
+    if (push) {
+      await this.push(created);
+    }
     return true;
   }
 

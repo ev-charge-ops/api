@@ -53,6 +53,28 @@ export class MockChargerGateway extends ChargerGateway {
   ): Promise<Telemetry> {
     return Promise.resolve(mockTelemetry(profile, window));
   }
+
+  projectCompletion(profile: ChargingProfile): Date | null {
+    return projectedCompletion(profile);
+  }
+}
+
+function minuteToDate(profile: ChargingProfile, minute: number): Date {
+  const realMsPerMinute = MINUTE_IN_MS / profile.timeScale;
+  return new Date(
+    profile.startedAt.getTime() + Math.round(minute * realMsPerMinute),
+  );
+}
+
+export function projectedCompletion(profile: ChargingProfile): Date | null {
+  const charges = profile.allocatedPowerKw > 0 && profile.batteryCapacityWh > 0;
+  if (profile.targetEnergyWh > 0 && !charges) {
+    return null;
+  }
+  const { completedMinute } = simulate(profile, Number.POSITIVE_INFINITY);
+  return completedMinute === null
+    ? null
+    : minuteToDate(profile, completedMinute);
 }
 
 export function mockTelemetry(
@@ -60,10 +82,7 @@ export function mockTelemetry(
   window: TelemetryWindow,
 ): Telemetry {
   const realMsPerMinute = MINUTE_IN_MS / profile.timeScale;
-  const toDate = (minute: number) =>
-    new Date(
-      profile.startedAt.getTime() + Math.round(minute * realMsPerMinute),
-    );
+  const toDate = (minute: number) => minuteToDate(profile, minute);
   const elapsedMinutes = Math.max(
     0,
     (window.until.getTime() - profile.startedAt.getTime()) / realMsPerMinute,

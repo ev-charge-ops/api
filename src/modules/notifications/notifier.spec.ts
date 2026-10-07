@@ -121,6 +121,19 @@ describe('Notifier', () => {
     ).resolves.toBe(true);
   });
 
+  it('stores without pushing when asked to stay silent', async () => {
+    const repository = createRepository(['token-a']);
+    const send = vi.fn();
+
+    await expect(
+      notifierWith(repository, send).notify(NOTIFICATION, { push: false }),
+    ).resolves.toBe(true);
+
+    expect(repository.create).toHaveBeenCalledWith(NOTIFICATION, NOW);
+    expect(repository.tokensOf).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+  });
+
   it('skips the push when the user has no device', async () => {
     const repository = createRepository([]);
     const send = vi.fn();

@@ -59,4 +59,6 @@ export abstract class ChargerGateway {
     profile: ChargingProfile,
     window: TelemetryWindow,
   ): Promise<Telemetry>;
+
+  abstract projectCompletion(profile: ChargingProfile): Date | null;
 }

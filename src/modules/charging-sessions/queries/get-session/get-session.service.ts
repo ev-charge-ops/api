@@ -5,6 +5,7 @@ import { toDetailResponse } from '../../charging-session.mapper.js';
 import { ChargingSessionRepository } from '../../database/charging-session.repository.port.js';
 import type { SessionDetailResponseDto } from '../../dto/session-detail.response.dto.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
+import { SessionProjector } from '../../session-projector.js';
 
 @Injectable()
 export class GetSessionService {
@@ -12,6 +13,7 @@ export class GetSessionService {
     private readonly sessions: ChargingSessionRepository,
     private readonly synchronizer: SessionSynchronizer,
     private readonly clock: Clock,
+    private readonly projector: SessionProjector,
   ) {}
 
   async execute(
@@ -24,6 +26,10 @@ export class GetSessionService {
     }
     const session = await this.synchronizer.sync(found, this.clock.now());
     const readings = await this.sessions.findReadings(session.id);
-    return toDetailResponse(session, readings);
+    return toDetailResponse(
+      session,
+      readings,
+      this.projector.timelineOf(session),
+    );
   }
 }

@@ -8,6 +8,7 @@ import type {
 import { SessionStatus } from './domain/session-status.js';
 import { SessionEvents, snapshotOf } from './session-events.js';
 import { SessionPayments } from './session-payments.js';
+import { chargingProfileOf } from './session-projector.js';
 
 @Injectable()
 export class SessionSynchronizer {
@@ -53,16 +54,7 @@ export class SessionSynchronizer {
     }
     const props = session.toProps();
     const telemetry = await this.gateway.readTelemetry(
-      {
-        chargerSerialNumber: props.chargerSerialNumber,
-        transactionId: props.externalTransactionId ?? '',
-        startedAt: props.startedAt,
-        allocatedPowerKw: props.allocatedPowerKw,
-        targetEnergyWh: props.targetEnergyWh ?? 0,
-        batteryCapacityWh: props.batteryCapacityWh ?? 0,
-        initialSocPercent: props.initialSocPercent ?? 0,
-        timeScale: props.timeScale,
-      },
+      chargingProfileOf(session),
       { since: props.telemetryReadAt ?? props.startedAt, until: now },
     );
     session.recordTelemetry(telemetry.current, telemetry.completedAt, now);
