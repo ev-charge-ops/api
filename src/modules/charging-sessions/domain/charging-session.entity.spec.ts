@@ -301,4 +301,52 @@ describe('ChargingSession', () => {
 
     expect(session.toProps().energyWh).toBe(29_000);
   });
+
+  describe('projectTimeline', () => {
+    it('projects grace, idle and cap from the expected end of charging', () => {
+      expect(activeSession().projectTimeline(at(240))).toEqual({
+        chargingEndsAt: at(240),
+        graceEndsAt: at(250),
+        idleStartsAt: at(250),
+        idleFeeCapReachedAt: at(370),
+      });
+    });
+
+    it('keeps the actual times once charging has ended', () => {
+      const session = finishedCharging(235);
+
+      expect(session.projectTimeline(at(240))).toEqual({
+        chargingEndsAt: at(235),
+        graceEndsAt: session.graceEndsAt,
+        idleStartsAt: session.idleStartsAt,
+        idleFeeCapReachedAt: session.idleFeeCapReachedAt,
+      });
+      session.advance(at(300));
+      expect(session.projectTimeline(null).idleStartsAt).toEqual(at(245));
+    });
+
+    it('scales the projection with the simulation speed', () => {
+      const session = newSession({ type: 'FULL' }, 60);
+      session.activate('tx-1', VEHICLE, STARTED_AT);
+      const chargingEndsAt = new Date(STARTED_AT.getTime() + 240_000);
+
+      expect(session.projectTimeline(chargingEndsAt).graceEndsAt).toEqual(
+        new Date(chargingEndsAt.getTime() + 10_000),
+      );
+    });
+
+    it('projects nothing before charging starts or after the session ends', () => {
+      const empty = {
+        chargingEndsAt: null,
+        graceEndsAt: null,
+        idleStartsAt: null,
+        idleFeeCapReachedAt: null,
+      };
+      expect(newSession().projectTimeline(at(240))).toEqual(empty);
+      const closed = activeSession();
+      closed.stop(at(30));
+      expect(closed.projectTimeline(at(240))).toEqual(empty);
+      expect(activeSession().projectTimeline(null)).toEqual(empty);
+    });
+  });
 });

@@ -72,6 +72,13 @@ export interface ChargingSessionProps {
   version: Date | null;
 }
 
+export interface SessionTimeline {
+  chargingEndsAt: Date | null;
+  graceEndsAt: Date | null;
+  idleStartsAt: Date | null;
+  idleFeeCapReachedAt: Date | null;
+}
+
 export interface AnomalyResult {
   score: number;
   isAnomaly: boolean;
@@ -189,11 +196,7 @@ export class ChargingSession {
   }
 
   get graceEndsAt(): Date | null {
-    const { chargingEndedAt, gracePeriodMinutes, timeScale } = this.props;
-    if (!chargingEndedAt) {
-      return null;
-    }
-    return addSessionMinutes(chargingEndedAt, gracePeriodMinutes, timeScale);
+    return this.graceEndFrom(this.props.chargingEndedAt);
   }
 
   get idleStartsAt(): Date | null {
@@ -201,16 +204,18 @@ export class ChargingSession {
   }
 
   get idleFeeCapReachedAt(): Date | null {
-    const idleStartsAt = this.idleStartsAt;
-    const { idleFeeCentsPerMinute, idleFeeCapCents, timeScale } = this.props;
-    if (!idleStartsAt || idleFeeCentsPerMinute <= 0) {
-      return null;
-    }
-    return addSessionMinutes(
-      idleStartsAt,
-      Math.ceil(idleFeeCapCents / idleFeeCentsPerMinute),
-      timeScale,
-    );
+    return this.idleFeeCapFrom(this.idleStartsAt);
+  }
+
+  projectTimeline(projectedChargingEndsAt: Date | null): SessionTimeline {
+    const chargingEndsAt = this.timelineChargingEnd(projectedChargingEndsAt);
+    const graceEndsAt = this.graceEndFrom(chargingEndsAt);
+    return {
+      chargingEndsAt,
+      graceEndsAt,
+      idleStartsAt: graceEndsAt,
+      idleFeeCapReachedAt: this.idleFeeCapFrom(graceEndsAt),
+    };
   }
 
   toProps(): ChargingSessionProps {
@@ -400,6 +405,41 @@ export class ChargingSession {
     this.props.anomalyScore = result.score;
     this.props.isAnomaly = result.isAnomaly;
     this.props.anomalyModelVersion = result.modelVersion;
+  }
+
+  private timelineChargingEnd(projected: Date | null): Date | null {
+    switch (this.props.status) {
+      case SessionStatus.ACTIVE:
+        return projected;
+      case SessionStatus.GRACE:
+      case SessionStatus.IDLE:
+        return this.props.chargingEndedAt;
+      default:
+        return null;
+    }
+  }
+
+  private graceEndFrom(chargingEndsAt: Date | null): Date | null {
+    if (!chargingEndsAt) {
+      return null;
+    }
+    return addSessionMinutes(
+      chargingEndsAt,
+      this.props.gracePeriodMinutes,
+      this.props.timeScale,
+    );
+  }
+
+  private idleFeeCapFrom(idleStartsAt: Date | null): Date | null {
+    const { idleFeeCentsPerMinute, idleFeeCapCents, timeScale } = this.props;
+    if (!idleStartsAt || idleFeeCentsPerMinute <= 0) {
+      return null;
+    }
+    return addSessionMinutes(
+      idleStartsAt,
+      Math.ceil(idleFeeCapCents / idleFeeCentsPerMinute),
+      timeScale,
+    );
   }
 
   private expectStatus(status: SessionStatus): void {
