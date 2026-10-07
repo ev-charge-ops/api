@@ -56,8 +56,13 @@ export class ChargePointsService {
     private readonly clock: Clock,
   ) {}
 
-  async list(userId: string): Promise<ChargePointResponseDto[]> {
-    const points = await this.repository.findVisibleTo(userId);
+  async list(
+    userId: string,
+    organizationId?: string,
+  ): Promise<ChargePointResponseDto[]> {
+    const points = await this.repository.findVisibleTo(userId, {
+      organizationId,
+    });
     const priced = await this.price(points, this.clock.now());
     return priced.map(toResponse);
   }
@@ -102,7 +107,7 @@ export class ChargePointsService {
     id: string,
     at: Date,
   ): Promise<PricedPoint> {
-    const points = await this.repository.findVisibleTo(userId, id);
+    const points = await this.repository.findVisibleTo(userId, { id });
     if (points.length === 0) {
       throw new NotFoundException('Charge point not found');
     }
