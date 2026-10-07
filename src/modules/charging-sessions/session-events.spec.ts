@@ -7,6 +7,7 @@ import {
   sessionNotifications,
   snapshotOf,
 } from './session-events.js';
+import type { SessionProjector } from './session-projector.js';
 
 const STARTED_AT = new Date('2026-10-07T22:00:00.000Z');
 const VEHICLE = { batteryCapacityWh: 50_000, socPercent: 42 };
@@ -168,16 +169,87 @@ describe('sessionNotifications', () => {
 describe('SessionEvents', () => {
   const notify = vi.fn();
   const advance = vi.fn();
+  const isProjectable = vi.fn();
+  let now = at(500);
   let events: SessionEvents;
 
   beforeEach(() => {
     notify.mockReset().mockResolvedValue(true);
     advance.mockReset().mockResolvedValue(undefined);
+    isProjectable.mockReset().mockReturnValue(true);
+    now = at(500);
     events = new SessionEvents(
       { notify } as unknown as Notifier,
       { advance } as unknown as ChargePointQueue,
-      { now: () => at(500) } as Clock,
+      { now: () => now } as Clock,
+      { isProjectable } as unknown as SessionProjector,
     );
+  });
+
+  function pushedTypes(): Record<string, boolean> {
+    return Object.fromEntries(
+      notify.mock.calls.map(([notification, options]) => [
+        notification.type,
+        options.push,
+      ]),
+    );
+  }
+
+  function finishedAt(minutes: number) {
+    const session = activeSession();
+    const before = snapshotOf(session);
+    session.recordTelemetry(
+      { at: at(minutes), energyWh: 29_000, powerKw: 0, socPercent: 100 },
+      at(minutes),
+      at(minutes),
+    );
+    return { before, session };
+  }
+
+  it('pushes transitions detected right after they happen', async () => {
+    const { before, session } = finishedAt(240);
+    now = new Date(at(240).getTime() + 60_000);
+
+    await events.changed(before, session);
+
+    expect(pushedTypes()).toEqual({ CHARGING_COMPLETE: true });
+  });
+
+  it('stores late transitions without pushing what the device already showed', async () => {
+    const { before, session } = finishedAt(240);
+    session.advance(at(251));
+    now = at(251);
+
+    await events.changed(before, session);
+
+    expect(pushedTypes()).toEqual({
+      CHARGING_COMPLETE: false,
+      IDLE_FEE_STARTED: true,
+    });
+  });
+
+  it('keeps pushing late transitions the device could not foresee', async () => {
+    isProjectable.mockReturnValue(false);
+    const { before, session } = finishedAt(240);
+    session.advance(at(300));
+    now = at(300);
+
+    await events.changed(before, session);
+
+    expect(pushedTypes()).toEqual({
+      CHARGING_COMPLETE: true,
+      IDLE_FEE_STARTED: true,
+    });
+  });
+
+  it('keeps pushing the other session events', async () => {
+    const session = newSession();
+    const before = snapshotOf(session);
+    session.activate('tx-1', VEHICLE, at(1));
+
+    await events.changed(before, session);
+
+    expect(pushedTypes()).toEqual({ SESSION_ACTIVE: true });
   });
 
   it('notifies only when the status or the payment changed', async () => {

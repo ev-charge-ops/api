@@ -477,4 +477,40 @@ describe('Notifications (e2e)', () => {
     const visitorList = await as(visitor).get('/me/notifications').expect(200);
     expect(visitorList.body.unreadCount).toBe(4);
   });
+
+  it('stores transitions detected late without pushing what the device already scheduled', async () => {
+    now = new Date(now.getTime() + 3_600_000);
+    outbox.clear();
+    const started = await as(driver)
+      .post('/sessions', { chargePointId: privatePointId })
+      .expect(201);
+    const sessionId: string = started.body.id;
+    const projected = {
+      chargingEndsAt: started.body.projectedChargingEndsAt as string,
+      idleStartsAt: started.body.projectedIdleStartsAt as string,
+    };
+    expect(projected.chargingEndsAt).toEqual(expect.any(String));
+
+    now = plusSimulatedMinutes(new Date(projected.idleStartsAt), 90);
+    const idle = await as(driver).get('/sessions/active').expect(200);
+    expect(idle.body.session).toMatchObject({
+      status: 'IDLE',
+      chargingEndedAt: projected.chargingEndsAt,
+      idleStartsAt: projected.idleStartsAt,
+      projectedIdleStartsAt: projected.idleStartsAt,
+    });
+
+    const [idleFee, complete] = await notificationsOf(driver);
+    expect(complete).toMatchObject({
+      type: 'CHARGING_COMPLETE',
+      data: { sessionId },
+    });
+    expect(idleFee).toMatchObject({
+      type: 'IDLE_FEE_STARTED',
+      data: { sessionId, idleStartsAt: projected.idleStartsAt },
+    });
+    expect(pushedTitles(driverToken)).toEqual(['Carregador liberado']);
+
+    await as(driver).post(`/sessions/${sessionId}/stop`).expect(200);
+  });
 });
