@@ -15,6 +15,23 @@ permissions:
 jobs:
   check:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ev_charge_ops
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ev_charge_ops"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ev_charge_ops
+      DATABASE_URL_UNPOOLED: postgresql://postgres:postgres@localhost:5432/ev_charge_ops
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -22,8 +39,10 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run prisma:generate
       - run: npm run lint
       - run: npx tsc --noEmit
+      - run: npx prisma migrate deploy
       - run: npm test
       - run: npm run test:e2e
       - run: npm run build
