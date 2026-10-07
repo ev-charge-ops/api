@@ -14,6 +14,7 @@ describe('validateEnv', () => {
       PORT: 3000,
       JWT_ACCESS_TTL: '15m',
       REFRESH_TTL_DAYS: 7,
+      REFRESH_REUSE_GRACE_SECONDS: 60,
       CORS_ORIGINS: [],
       THROTTLE_TTL_SECONDS: 60,
       THROTTLE_LIMIT: 100,
@@ -81,6 +82,12 @@ describe('validateEnv', () => {
 
   it('coerces PORT to a number', () => {
     expect(validateEnv({ ...validEnv, PORT: '8080' }).PORT).toBe(8080);
+  });
+
+  it('rejects a negative refresh reuse grace window', () => {
+    expect(() =>
+      validateEnv({ ...validEnv, REFRESH_REUSE_GRACE_SECONDS: '-1' }),
+    ).toThrow(/REFRESH_REUSE_GRACE_SECONDS/);
   });
 
   it('coerces REFRESH_TTL_DAYS to a number', () => {
