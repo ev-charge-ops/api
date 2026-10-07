@@ -2,6 +2,17 @@ import { z } from 'zod';
 
 export const DEFAULT_MAIL_FROM = 'EV ChargeOps <noreply@evchargeops.com.br>';
 
+const commaSeparatedList = () =>
+  z
+    .string()
+    .default('')
+    .transform((value) =>
+      value
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0),
+    );
+
 export const envSchema = z
   .object({
     NODE_ENV: z
@@ -16,15 +27,7 @@ export const envSchema = z
       .regex(/^\d+(ms|s|m|h|d)$/, 'must be a duration such as 15m or 1h')
       .default('15m'),
     REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
-    CORS_ORIGINS: z
-      .string()
-      .default('')
-      .transform((value) =>
-        value
-          .split(',')
-          .map((origin) => origin.trim())
-          .filter((origin) => origin.length > 0),
-      ),
+    CORS_ORIGINS: commaSeparatedList(),
     THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
     THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
     AUTH_THROTTLE_LIMIT: z.coerce.number().int().positive().default(10),
@@ -37,6 +40,8 @@ export const envSchema = z
       .url()
       .default('http://localhost:5173')
       .transform((value) => value.replace(/\/+$/, '')),
+    GOOGLE_CLIENT_IDS: commaSeparatedList(),
+    APPLE_CLIENT_IDS: commaSeparatedList(),
   })
   .superRefine((env, context) => {
     if (env.MAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {

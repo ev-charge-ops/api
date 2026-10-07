@@ -21,6 +21,8 @@ describe('validateEnv', () => {
       MAIL_DRIVER: 'console',
       MAIL_FROM: 'EV ChargeOps <noreply@evchargeops.com.br>',
       APP_URL: 'http://localhost:5173',
+      GOOGLE_CLIENT_IDS: [],
+      APPLE_CLIENT_IDS: [],
     });
   });
 
@@ -41,6 +43,23 @@ describe('validateEnv', () => {
         CORS_ORIGINS: 'http://localhost:5173, https://app-*.vercel.app,',
       }).CORS_ORIGINS,
     ).toEqual(['http://localhost:5173', 'https://app-*.vercel.app']);
+  });
+
+  it('splits OAuth client ids into trimmed lists', () => {
+    const env = validateEnv({
+      ...validEnv,
+      GOOGLE_CLIENT_IDS:
+        'web.apps.googleusercontent.com, ios.apps.googleusercontent.com',
+      APPLE_CLIENT_IDS: 'io.softmoon.evchargeops,io.softmoon.evchargeops.web,',
+    });
+    expect(env.GOOGLE_CLIENT_IDS).toEqual([
+      'web.apps.googleusercontent.com',
+      'ios.apps.googleusercontent.com',
+    ]);
+    expect(env.APPLE_CLIENT_IDS).toEqual([
+      'io.softmoon.evchargeops',
+      'io.softmoon.evchargeops.web',
+    ]);
   });
 
   it('throws when DATABASE_URL is missing', () => {
