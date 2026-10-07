@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { MonthRange } from '../../../common/time/sao-paulo-time.js';
 import { PrismaService } from '../../../database/prisma.service.js';
 import {
   SESSION_INCLUDE,
@@ -59,8 +60,12 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
   async listByUser(
     userId: string,
     page: { skip: number; take: number },
+    range?: MonthRange,
   ): Promise<SessionPage> {
-    const where = { userId };
+    const where = {
+      userId,
+      ...(range ? { startedAt: { gte: range.start, lt: range.end } } : {}),
+    };
     const [records, total] = await this.prisma.$transaction([
       this.prisma.chargingSession.findMany({
         where,
