@@ -198,6 +198,7 @@ function toResponse({
           demandFactor: demand.factor,
           demandLevel: demand.level,
           demandFactorSource: demand.source,
+          demandModelVersion: demand.modelVersion,
           demandFactorApplied: appliesDemandFactor(point.type),
           idleFeeCentsPerMinute: tariff.idleFeeCentsPerMinute,
           idleFeeCapCents: tariff.idleFeeCapCents,

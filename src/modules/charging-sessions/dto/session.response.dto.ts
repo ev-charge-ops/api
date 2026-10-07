@@ -91,6 +91,13 @@ export class SessionResponseDto {
   @ApiProperty({ enum: DemandFactorSource, enumName: 'DemandFactorSource' })
   demandFactorSource: DemandFactorSource;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    description: 'Version of the ML model that produced the demand factor',
+  })
+  demandModelVersion: string | null;
+
   @ApiProperty({ example: 1047 })
   energyCostCents: number;
 
@@ -112,8 +119,16 @@ export class SessionResponseDto {
   @ApiProperty({ example: 1047 })
   totalCents: number;
 
-  @ApiProperty({ type: Number, nullable: true })
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    description:
+      'Anomaly score from the ML service, set when the session closes',
+  })
   anomalyScore: number | null;
+
+  @ApiProperty({ type: Boolean, nullable: true })
+  isAnomaly: boolean | null;
 
   @ApiProperty({
     example: 60,

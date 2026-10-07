@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ChargePointsModule } from '../charge-points/charge-points.module.js';
 import { ChargerGatewayModule } from '../charger-gateway/charger-gateway.module.js';
+import { IntelligenceModule } from '../intelligence/intelligence.module.js';
 import { StartSessionController } from './commands/start-session/start-session.controller.js';
 import { StartSessionService } from './commands/start-session/start-session.service.js';
 import { StopSessionController } from './commands/stop-session/stop-session.controller.js';
@@ -16,7 +17,7 @@ import { ListMySessionsService } from './queries/list-my-sessions/list-my-sessio
 import { SessionSynchronizer } from './session-synchronizer.js';
 
 @Module({
-  imports: [ChargePointsModule, ChargerGatewayModule],
+  imports: [ChargePointsModule, ChargerGatewayModule, IntelligenceModule],
   controllers: [
     StartSessionController,
     GetActiveSessionController,

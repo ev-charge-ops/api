@@ -32,6 +32,7 @@ function newSession(
     lockedRateCents: 89,
     demandFactor: 1,
     demandFactorSource: 'RULE',
+    demandModelVersion: null,
     idleFeeCentsPerMinute: 25,
     idleFeeCapCents: 3000,
     gracePeriodMinutes: 10,
@@ -252,6 +253,32 @@ describe('ChargingSession', () => {
       endedAt: at(1),
       totalCents: 0,
     });
+  });
+
+  it('records the anomaly score of a closed session', () => {
+    const session = finishedCharging();
+    session.stop(at(245));
+    session.recordAnomaly({
+      score: 0.9132,
+      isAnomaly: true,
+      modelVersion: 'iforest-1',
+    });
+
+    expect(session.toProps()).toMatchObject({
+      anomalyScore: 0.9132,
+      isAnomaly: true,
+      anomalyModelVersion: 'iforest-1',
+    });
+  });
+
+  it('only scores closed sessions', () => {
+    expect(() =>
+      activeSession().recordAnomaly({
+        score: 0.1,
+        isAnomaly: false,
+        modelVersion: null,
+      }),
+    ).toThrow(InvalidSessionTransitionError);
   });
 
   it('ignores telemetry once charging has ended', () => {
