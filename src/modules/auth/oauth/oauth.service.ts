@@ -1,9 +1,19 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  HttpStatus,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service.js';
 import { Prisma, type User } from '../../../generated/prisma/client.js';
 import type { IdentityProvider } from '../../../generated/prisma/enums.js';
 import { AuthService } from '../auth.service.js';
 import type { AuthResponseDto } from '../dto/auth.response.dto.js';
+import {
+  GoogleAuthCodeExchanger,
+  GoogleCodeFlowNotConfiguredError,
+  InvalidGoogleAuthCodeError,
+} from './google-auth-code-exchanger.js';
 import {
   InvalidOAuthTokenError,
   OAuthTokenVerifier,
@@ -12,6 +22,8 @@ import {
 
 const MAX_NAME_LENGTH = 100;
 const UNIQUE_CONSTRAINT_VIOLATION = 'P2002';
+export const GOOGLE_CODE_FLOW_NOT_CONFIGURED =
+  'GOOGLE_CODE_FLOW_NOT_CONFIGURED';
 
 export interface OAuthProfile {
   givenName?: string;
@@ -24,6 +36,7 @@ export class OAuthService {
     private readonly verifier: OAuthTokenVerifier,
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    private readonly codeExchanger: GoogleAuthCodeExchanger,
   ) {}
 
   async login(
@@ -34,6 +47,30 @@ export class OAuthService {
     const identity = await this.verify(provider, token);
     const user = await this.resolveUser(identity, profile);
     return this.auth.createSession(user);
+  }
+
+  async loginWithGoogleCode(code: string): Promise<AuthResponseDto> {
+    const idToken = await this.exchangeGoogleCode(code);
+    return this.login('GOOGLE', idToken);
+  }
+
+  private async exchangeGoogleCode(code: string): Promise<string> {
+    try {
+      return await this.codeExchanger.exchange(code);
+    } catch (error) {
+      if (error instanceof GoogleCodeFlowNotConfiguredError) {
+        throw new ServiceUnavailableException({
+          statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+          error: 'Service Unavailable',
+          message: error.message,
+          code: GOOGLE_CODE_FLOW_NOT_CONFIGURED,
+        });
+      }
+      if (error instanceof InvalidGoogleAuthCodeError) {
+        throw new UnauthorizedException(error.message);
+      }
+      throw error;
+    }
   }
 
   private async verify(

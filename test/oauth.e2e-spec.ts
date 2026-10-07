@@ -5,6 +5,8 @@ import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 import { PrismaService } from './../src/database/prisma.service.js';
+import { FetchGoogleAuthCodeExchanger } from './../src/modules/auth/oauth/fetch-google-auth-code-exchanger.js';
+import { GoogleAuthCodeExchanger } from './../src/modules/auth/oauth/google-auth-code-exchanger.js';
 import {
   APPLE_ISSUERS,
   GOOGLE_ISSUERS,
@@ -19,11 +21,29 @@ vi.hoisted(() => {
 
 const GOOGLE_CLIENT_ID = 'e2e-web.apps.googleusercontent.com';
 const APPLE_CLIENT_ID = 'io.softmoon.evchargeops';
+const GOOGLE_CLIENT_SECRET = 'e2e-client-secret';
+
+class FakeGoogleTokenEndpoint {
+  readonly idTokens = new Map<string, string>();
+  readonly requests: Record<string, string>[] = [];
+
+  readonly fetch: typeof fetch = (_input, init) => {
+    const form = Object.fromEntries(init?.body as URLSearchParams);
+    this.requests.push(form);
+    const idToken = this.idTokens.get(form.code);
+    return Promise.resolve(
+      idToken
+        ? Response.json({ access_token: 'access', id_token: idToken })
+        : Response.json({ error: 'invalid_grant' }, { status: 400 }),
+    );
+  };
+}
 
 describe('OAuth login (e2e)', () => {
   let app: INestApplication<App>;
   let prisma: PrismaService;
   let issuer: OAuthTestIssuer;
+  const tokenEndpoint = new FakeGoogleTokenEndpoint();
   const run = randomUUID();
   const emails: string[] = [];
 
@@ -70,6 +90,14 @@ describe('OAuth login (e2e)', () => {
             audiences: [APPLE_CLIENT_ID],
             requireEmail: false,
           },
+        }),
+      )
+      .overrideProvider(GoogleAuthCodeExchanger)
+      .useValue(
+        new FetchGoogleAuthCodeExchanger({
+          clientId: GOOGLE_CLIENT_ID,
+          clientSecret: GOOGLE_CLIENT_SECRET,
+          fetch: tokenEndpoint.fetch,
         }),
       )
       .compile();
@@ -204,6 +232,65 @@ describe('OAuth login (e2e)', () => {
       .expect(400);
   });
 
+  it('logs in with a Google authorization code like with an ID token', async () => {
+    const email = newEmail('google-code');
+    const subject = randomUUID();
+    const claims = { email, email_verified: true, name: 'Cora Code' };
+    const code = `code-${randomUUID()}`;
+    tokenEndpoint.idTokens.set(code, await googleToken(claims, { subject }));
+
+    const response = await request(app.getHttpServer())
+      .post('/auth/oauth/google/code')
+      .send({ code })
+      .expect(200);
+    expect(response.body.user).toMatchObject({
+      name: 'Cora Code',
+      email,
+      role: 'DRIVER',
+      emailVerified: true,
+    });
+    expect(response.body.accessToken).toEqual(expect.any(String));
+    expect(tokenEndpoint.requests.at(-1)).toEqual({
+      code,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      redirect_uri: 'postmessage',
+      grant_type: 'authorization_code',
+    });
+
+    const withIdToken = await loginWithGoogle(
+      await googleToken(claims, { subject }),
+    ).expect(200);
+    expect(withIdToken.body.user.id).toBe(response.body.user.id);
+  });
+
+  it('rejects Google authorization codes that cannot be used', async () => {
+    const email = newEmail('google-code-audience');
+    const foreignCode = `code-${randomUUID()}`;
+    tokenEndpoint.idTokens.set(
+      foreignCode,
+      await googleToken(
+        { email, email_verified: true },
+        { audience: 'someone-else.apps.googleusercontent.com' },
+      ),
+    );
+
+    const unknown = await request(app.getHttpServer())
+      .post('/auth/oauth/google/code')
+      .send({ code: 'bogus-code' })
+      .expect(401);
+    expect(unknown.body.message).toBe('Invalid authorization code');
+    await request(app.getHttpServer())
+      .post('/auth/oauth/google/code')
+      .send({ code: foreignCode })
+      .expect(401);
+    await request(app.getHttpServer())
+      .post('/auth/oauth/google/code')
+      .send({})
+      .expect(400);
+    expect(await prisma.user.findUnique({ where: { email } })).toBeNull();
+  });
+
   it('creates an Apple user with a private relay email and the shared name', async () => {
     const email = newEmail('apple').replace(
       '@example.com',
@@ -247,5 +334,38 @@ describe('OAuth login (e2e)', () => {
       .send({ identityToken: withoutEmail })
       .expect(200);
     expect(again.body.user.id).toBe(response.body.user.id);
+  });
+});
+
+describe('Google authorization code login without configuration (e2e)', () => {
+  let app: INestApplication<App>;
+
+  beforeAll(async () => {
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideProvider(GoogleAuthCodeExchanger)
+      .useValue(
+        new FetchGoogleAuthCodeExchanger({ clientId: '', clientSecret: '' }),
+      )
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    await app.init();
+  });
+
+  afterAll(async () => {
+    await app.close();
+  });
+
+  it('responds 503 with GOOGLE_CODE_FLOW_NOT_CONFIGURED', async () => {
+    const response = await request(app.getHttpServer())
+      .post('/auth/oauth/google/code')
+      .send({ code: 'any-code' })
+      .expect(503);
+    expect(response.body).toMatchObject({
+      statusCode: 503,
+      code: 'GOOGLE_CODE_FLOW_NOT_CONFIGURED',
+    });
   });
 });
