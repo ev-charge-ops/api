@@ -12,6 +12,7 @@ import type { ChargingSession } from '../../domain/charging-session.entity.js';
 import type { SessionResponseDto } from '../../dto/session.response.dto.js';
 import { SessionPayments } from '../../session-payments.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
+import { SessionProjector } from '../../session-projector.js';
 
 @Injectable()
 export class ConfirmSessionPaymentService {
@@ -20,6 +21,7 @@ export class ConfirmSessionPaymentService {
     private readonly payments: SessionPayments,
     private readonly synchronizer: SessionSynchronizer,
     private readonly clock: Clock,
+    private readonly projector: SessionProjector,
   ) {}
 
   async execute(
@@ -43,6 +45,7 @@ export class ConfirmSessionPaymentService {
     } catch (error) {
       throw paymentProviderError(error);
     }
-    return toResponse(await this.synchronizer.sync(reconciled, now));
+    const session = await this.synchronizer.sync(reconciled, now);
+    return toResponse(session, this.projector.timelineOf(session));
   }
 }
