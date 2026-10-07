@@ -6,10 +6,7 @@ import type {
   Tariff,
 } from '../../generated/prisma/client.js';
 import type { ChargePointType } from '../../generated/prisma/enums.js';
-import {
-  type DemandFactor,
-  DemandFactorProvider,
-} from '../intelligence/demand-factor/demand-factor.provider.js';
+import type { DemandFactor } from '../intelligence/demand-factor/demand-factor.provider.js';
 import {
   type ChargePointStatus,
   chargePointStatus,
@@ -18,10 +15,15 @@ import {
 import {
   type ChargePointRecord,
   ChargePointsRepository,
+  type MapPointRecord,
 } from './charge-points.repository.js';
+import { DemandFactorCache } from './demand-factor-cache.js';
+import { ChargePointClusterResponseDto } from './dto/charge-point-cluster.response.dto.js';
+import { ChargePointMapItemResponseDto } from './dto/charge-point-map-item.response.dto.js';
 import { ChargePointPricingDto } from './dto/charge-point-pricing.dto.js';
 import { ChargePointResponseDto } from './dto/charge-point.response.dto.js';
 import { ChargerResponseDto } from './dto/charger.response.dto.js';
+import { type BoundingBox, clusterCellDegrees, SAO_PAULO } from './geo.js';
 import { ChargePointQueue } from './queue/charge-point-queue.js';
 import { type QueueEntryRecord, summarize } from './queue/queue-rules.js';
 import type { SiteCapacity } from './site-capacity.js';
@@ -30,6 +32,9 @@ import {
   effectiveTariff,
   pricePerKwhCents,
 } from './tariff-rules.js';
+
+export const NEARBY_RADIUS_KM = 25;
+export const NEARBY_LIMIT = 200;
 
 export interface ChargePointQuote {
   chargePointId: string;
@@ -76,7 +81,7 @@ interface PricedPoint<T extends PriceablePoint = ChargePointRecord> {
 export class ChargePointsService {
   constructor(
     private readonly repository: ChargePointsRepository,
-    private readonly demandFactors: DemandFactorProvider,
+    private readonly demandFactors: DemandFactorCache,
     private readonly queue: ChargePointQueue,
     private readonly clock: Clock,
   ) {}
@@ -85,11 +90,64 @@ export class ChargePointsService {
     userId: string,
     organizationId?: string,
   ): Promise<ChargePointResponseDto[]> {
-    const points = await this.repository.findVisibleTo(userId, {
-      organizationId,
-    });
+    const points = organizationId
+      ? await this.repository.findVisibleTo(userId, { organizationId })
+      : await this.findNearby(userId);
     const priced = await this.price(points, this.clock.now());
     return priced.map((item) => this.toResponse(item, userId));
+  }
+
+  async listInBox(
+    userId: string,
+    box: BoundingBox,
+    limit: number,
+  ): Promise<ChargePointMapItemResponseDto[]> {
+    const ids = await this.repository.findIdsInBox(userId, box, limit);
+    if (ids.length === 0) {
+      return [];
+    }
+    const at = this.clock.now();
+    const points = await this.repository.findMapPoints(ids);
+    const organizationIds = [
+      ...new Set(points.map((point) => point.organizationId)),
+    ];
+    const [occupying, tariffs] = await Promise.all([
+      this.repository.findOccupyingSessions(ids),
+      this.repository.findTariffs(organizationIds, at),
+    ]);
+    const byId = new Map(points.map((point) => [point.id, point]));
+    return ids
+      .map((id) => byId.get(id))
+      .filter((point): point is MapPointRecord => point !== undefined)
+      .map((point) =>
+        this.toMapItem(
+          point,
+          chargePointStatus(point.isOnline, occupying.get(point.id) ?? null),
+          effectiveTariff(
+            tariffs.filter(
+              (tariff) => tariff.organizationId === point.organizationId,
+            ),
+            point.id,
+            at,
+          ),
+          at,
+        ),
+      );
+  }
+
+  async listClusters(
+    userId: string,
+    box: BoundingBox,
+    zoom: number,
+  ): Promise<ChargePointClusterResponseDto[]> {
+    const clusters = await this.repository.findClusters(
+      userId,
+      box,
+      clusterCellDegrees(zoom),
+    );
+    return clusters.map((cluster) =>
+      Object.assign(new ChargePointClusterResponseDto(), cluster),
+    );
   }
 
   async listOrganizationPricing(
@@ -148,6 +206,59 @@ export class ChargePointsService {
     };
   }
 
+  private async findNearby(userId: string): Promise<ChargePointRecord[]> {
+    const origin =
+      (await this.repository.findCondoCentroid(userId)) ?? SAO_PAULO;
+    const privateIds = await this.repository.findMemberPrivateIds(
+      userId,
+      NEARBY_LIMIT,
+    );
+    const commercialIds = await this.repository.findCommercialIdsNear(
+      origin,
+      NEARBY_RADIUS_KM,
+      NEARBY_LIMIT - privateIds.length,
+    );
+    const ids = [...privateIds, ...commercialIds];
+    if (ids.length === 0) {
+      return [];
+    }
+    return this.repository.findVisibleTo(userId, { ids });
+  }
+
+  private toMapItem(
+    point: MapPointRecord,
+    status: ChargePointStatus,
+    tariff: Tariff | null,
+    at: Date,
+  ): ChargePointMapItemResponseDto {
+    const demand = this.demandFactors.peek(
+      point.organizationId,
+      point.type,
+      at,
+    );
+    const [charger] = point.chargers;
+    return Object.assign(new ChargePointMapItemResponseDto(), {
+      id: point.id,
+      code: point.code,
+      name: point.name,
+      type: point.type,
+      status,
+      latitude: point.latitude,
+      longitude: point.longitude,
+      maxPowerKw: point.maxPowerKw.toNumber(),
+      connector: charger?.connector ?? null,
+      operatorName: point.organization.name,
+      basePricePerKwhCents: tariff
+        ? pricePerKwhCents(point.type, tariff, 1)
+        : null,
+      pricePerKwhCents: tariff
+        ? pricePerKwhCents(point.type, tariff, demand?.factor ?? 1)
+        : null,
+      photoUrl: point.photoUrl,
+      source: point.source,
+    });
+  }
+
   private async findPriced(
     userId: string,
     id: string,
@@ -201,7 +312,7 @@ export class ChargePointsService {
             (total, point) => total + (queues.get(point.id)?.length ?? 0),
             0,
           );
-        demand = this.demandFactors.getFactor({
+        demand = this.demandFactors.get(organizationId, {
           at,
           chargePointType: type,
           occupancyRatio: occupancyRatio(siteStatuses),
