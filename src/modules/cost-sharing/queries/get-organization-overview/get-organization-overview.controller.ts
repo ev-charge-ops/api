@@ -7,8 +7,8 @@ import {
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { MonthQueryDto } from '../../../../common/time/month.query.dto.js';
 import { RequireOrganizationRole } from '../../../organizations/guards/require-organization-role.decorator.js';
-import { MonthQueryDto } from '../get-monthly-statement/month.query.dto.js';
 import { GetOrganizationOverviewService } from './get-organization-overview.service.js';
 import { OrganizationOverviewResponseDto } from './organization-overview.response.dto.js';
 

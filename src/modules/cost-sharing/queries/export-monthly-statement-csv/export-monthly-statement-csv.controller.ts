@@ -9,11 +9,11 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { MonthQueryDto } from '../../../../common/time/month.query.dto.js';
 import { formatMonth } from '../../../../common/time/sao-paulo-time.js';
 import { RequireOrganizationRole } from '../../../organizations/guards/require-organization-role.decorator.js';
 import { statementToCsv } from '../../domain/statement-csv.js';
 import { GetMonthlyStatementService } from '../get-monthly-statement/get-monthly-statement.service.js';
-import { MonthQueryDto } from '../get-monthly-statement/month.query.dto.js';
 
 @ApiTags('cost-sharing')
 @ApiBearerAuth()

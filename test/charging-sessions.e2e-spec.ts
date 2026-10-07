@@ -422,6 +422,39 @@ describe('Charging sessions (e2e)', () => {
     await get('/sessions?pageSize=101', driver).expect(400);
   });
 
+  it('filters the history by month in the Sao Paulo time zone', async () => {
+    await prisma.chargingSession.create({
+      data: {
+        userId: driver.id,
+        chargePointId: privatePointId,
+        organizationId,
+        unitLabel: 'B · 42',
+        regime: 'PRIVATE',
+        status: 'CLOSED',
+        allocatedPowerKw: 7,
+        lockedRateCents: 89,
+        demandFactor: 1,
+        demandFactorSource: 'RULE',
+        ...IDLE_TERMS,
+        startedAt: new Date('2026-11-01T02:30:00.000Z'),
+        endedAt: new Date('2026-11-01T03:30:00.000Z'),
+      },
+    });
+
+    const october = await get('/sessions?month=2026-10', driver).expect(200);
+    expect(october.body.total).toBe(2);
+    expect(october.body.items[0].startedAt).toBe('2026-11-01T02:30:00.000Z');
+
+    const november = await get('/sessions?month=2026-11', driver).expect(200);
+    expect(november.body).toMatchObject({ total: 0, items: [] });
+
+    const september = await get('/sessions?month=2026-09', driver).expect(200);
+    expect(september.body.total).toBe(0);
+
+    const invalid = await get('/sessions?month=2026-13', driver).expect(400);
+    expect(invalid.body.message).toContain('month must use the YYYY-MM format');
+  });
+
   it('interrupts the session when the charger does not start', async () => {
     const gateway = app.get(ChargerGateway);
     const start = vi
