@@ -30,6 +30,16 @@ enum MembershipRole {
   DRIVER
 }
 
+enum ChargePointType {
+  PRIVATE
+  COMMERCIAL
+}
+
+enum ConnectorType {
+  TYPE_2
+  CCS_2
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -94,13 +104,15 @@ model OneTimeToken {
 }
 
 model Organization {
-  id          String           @id @default(uuid())
-  name        String
-  type        OrganizationType
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
-  memberships Membership[]
-  invites     Invite[]
+  id           String           @id @default(uuid())
+  name         String
+  type         OrganizationType
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  memberships  Membership[]
+  invites      Invite[]
+  chargePoints ChargePoint[]
+  tariffs      Tariff[]
 }
 
 model Membership {
@@ -135,4 +147,54 @@ model Invite {
   createdAt      DateTime       @default(now())
 
   @@index([organizationId, email])
+}
+
+model ChargePoint {
+  id             String          @id @default(uuid())
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  type           ChargePointType
+  latitude       Float
+  longitude      Float
+  maxPowerKw     Decimal         @db.Decimal(6, 2)
+  isOnline       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  chargers       Charger[]
+  tariffs        Tariff[]
+
+  @@unique([organizationId, code])
+  @@index([type])
+}
+
+model Charger {
+  id            String        @id @default(uuid())
+  chargePointId String
+  chargePoint   ChargePoint   @relation(fields: [chargePointId], references: [id], onDelete: Cascade)
+  vendor        String
+  serialNumber  String        @unique
+  connector     ConnectorType @default(TYPE_2)
+  createdAt     DateTime      @default(now())
+
+  @@index([chargePointId])
+}
+
+model Tariff {
+  id                    String       @id @default(uuid())
+  organizationId        String
+  organization          Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chargePointId         String?
+  chargePoint           ChargePoint? @relation(fields: [chargePointId], references: [id], onDelete: Cascade)
+  utilityRateCents      Int
+  baseRateCents         Int?
+  accessFeeCents        Int
+  idleFeeCentsPerMinute Int
+  idleFeeCapCents       Int
+  gracePeriodMinutes    Int
+  validFrom             DateTime     @default(now())
+  createdAt             DateTime     @default(now())
+
+  @@index([organizationId, chargePointId, validFrom])
 }
