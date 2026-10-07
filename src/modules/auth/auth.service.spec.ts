@@ -192,6 +192,33 @@ describe('AuthService', () => {
     });
   });
 
+  describe('login without password', () => {
+    it('rejects a user without password with the generic error after a dummy hash check', async () => {
+      prisma.users.push({
+        id: randomUUID(),
+        name: 'OAuth Only',
+        email: 'oauth@example.com',
+        passwordHash: null,
+        role: 'DRIVER',
+        emailVerifiedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+      const dummy = vi.spyOn(PasswordService.prototype, 'verifyAgainstDummy');
+
+      const error = await service
+        .login({ email: 'oauth@example.com', password: 'any-password' })
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(UnauthorizedException);
+      expect((error as UnauthorizedException).getResponse()).toEqual(
+        new UnauthorizedException('Invalid credentials').getResponse(),
+      );
+      expect(dummy).toHaveBeenCalledWith('any-password');
+      dummy.mockRestore();
+    });
+  });
+
   describe('refresh', () => {
     it('rotates the refresh token and rejects reuse of the old one', async () => {
       const session = await service.register(registration);
