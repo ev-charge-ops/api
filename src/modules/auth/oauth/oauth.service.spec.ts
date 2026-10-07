@@ -1,10 +1,21 @@
 import { randomUUID } from 'node:crypto';
-import { UnauthorizedException } from '@nestjs/common';
+import {
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import type { PrismaService } from '../../../database/prisma.service.js';
 import type { User, UserIdentity } from '../../../generated/prisma/client.js';
 import type { IdentityProvider } from '../../../generated/prisma/enums.js';
 import type { AuthService } from '../auth.service.js';
-import { OAuthService } from './oauth.service.js';
+import {
+  GoogleAuthCodeExchanger,
+  GoogleCodeFlowNotConfiguredError,
+  InvalidGoogleAuthCodeError,
+} from './google-auth-code-exchanger.js';
+import {
+  GOOGLE_CODE_FLOW_NOT_CONFIGURED,
+  OAuthService,
+} from './oauth.service.js';
 import {
   InvalidOAuthTokenError,
   OAuthTokenVerifier,
@@ -23,6 +34,26 @@ class FakeVerifier extends OAuthTokenVerifier {
       return Promise.reject(new InvalidOAuthTokenError('Invalid token'));
     }
     return Promise.resolve(identity);
+  }
+}
+
+class FakeCodeExchanger extends GoogleAuthCodeExchanger {
+  readonly idTokens = new Map<string, string>();
+  configured = true;
+
+  exchange(code: string): Promise<string> {
+    if (!this.configured) {
+      return Promise.reject(
+        new GoogleCodeFlowNotConfiguredError('Not configured'),
+      );
+    }
+    const idToken = this.idTokens.get(code);
+    if (!idToken) {
+      return Promise.reject(
+        new InvalidGoogleAuthCodeError('Invalid authorization code'),
+      );
+    }
+    return Promise.resolve(idToken);
   }
 }
 
@@ -123,6 +154,7 @@ function createInMemoryPrisma() {
 describe('OAuthService', () => {
   let prisma: ReturnType<typeof createInMemoryPrisma>;
   let verifier: FakeVerifier;
+  let codeExchanger: FakeCodeExchanger;
   let createSession: ReturnType<typeof vi.fn>;
   let service: OAuthService;
 
@@ -158,6 +190,7 @@ describe('OAuthService', () => {
   beforeEach(() => {
     prisma = createInMemoryPrisma();
     verifier = new FakeVerifier();
+    codeExchanger = new FakeCodeExchanger();
     createSession = vi.fn((user: User) =>
       Promise.resolve({ user, accessToken: 'access', refreshToken: 'refresh' }),
     );
@@ -165,6 +198,7 @@ describe('OAuthService', () => {
       verifier,
       prisma as unknown as PrismaService,
       { createSession } as unknown as AuthService,
+      codeExchanger,
     );
   });
 
@@ -284,5 +318,52 @@ describe('OAuthService', () => {
       UnauthorizedException,
     );
     expect(prisma.users).toHaveLength(0);
+  });
+
+  describe('loginWithGoogleCode', () => {
+    it('logs in with the ID token obtained from the code', async () => {
+      codeExchanger.idTokens.set('code', 'token');
+      verifier.identities.set('token', googleIdentity());
+
+      await service.loginWithGoogleCode('code');
+
+      expect(prisma.users).toHaveLength(1);
+      expect(prisma.identities).toEqual([
+        expect.objectContaining({ provider: 'GOOGLE', subject: 'google-123' }),
+      ]);
+      expect(createSession).toHaveBeenCalledWith(prisma.users[0]);
+    });
+
+    it('maps a code refused by Google to 401', async () => {
+      await expect(service.loginWithGoogleCode('bogus')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(createSession).not.toHaveBeenCalled();
+    });
+
+    it('rejects an ID token that does not verify', async () => {
+      codeExchanger.idTokens.set('code', 'unknown-token');
+
+      await expect(service.loginWithGoogleCode('code')).rejects.toBeInstanceOf(
+        UnauthorizedException,
+      );
+      expect(prisma.users).toHaveLength(0);
+    });
+
+    it('returns 503 with an error code when the flow is not configured', async () => {
+      codeExchanger.configured = false;
+
+      const error = await service
+        .loginWithGoogleCode('code')
+        .catch((caught: unknown) => caught);
+
+      expect(error).toBeInstanceOf(ServiceUnavailableException);
+      expect(
+        (error as ServiceUnavailableException).getResponse(),
+      ).toMatchObject({
+        statusCode: 503,
+        code: GOOGLE_CODE_FLOW_NOT_CONFIGURED,
+      });
+    });
   });
 });

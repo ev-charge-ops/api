@@ -40,6 +40,8 @@ jobs:
       MAIL_DRIVER: console
       GOOGLE_CLIENT_IDS: ci-web.apps.googleusercontent.com,ci-ios.apps.googleusercontent.com
       APPLE_CLIENT_IDS: io.softmoon.evchargeops,io.softmoon.evchargeops.web
+      GOOGLE_WEB_CLIENT_ID: ci-web.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: ci-client-secret-not-used-anywhere-else
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
