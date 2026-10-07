@@ -20,6 +20,16 @@ enum IdentityProvider {
   APPLE
 }
 
+enum OrganizationType {
+  PRIVATE
+  COMMERCIAL
+}
+
+enum MembershipRole {
+  MANAGER
+  DRIVER
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -38,6 +48,7 @@ model User {
   refreshTokens   RefreshToken[]
   oneTimeTokens   OneTimeToken[]
   identities      UserIdentity[]
+  memberships     Membership[]
 }
 
 model UserIdentity {
@@ -78,4 +89,27 @@ model OneTimeToken {
   createdAt  DateTime         @default(now())
 
   @@index([userId, type])
+}
+
+model Organization {
+  id          String           @id @default(uuid())
+  name        String
+  type        OrganizationType
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  memberships Membership[]
+}
+
+model Membership {
+  id             String         @id @default(uuid())
+  userId         String
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           MembershipRole
+  unitLabel      String?
+  createdAt      DateTime       @default(now())
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
 }
