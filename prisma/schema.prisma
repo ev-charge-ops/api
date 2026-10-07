@@ -40,6 +40,26 @@ enum ConnectorType {
   CCS_2
 }
 
+enum ChargingSessionStatus {
+  PENDING
+  ACTIVE
+  GRACE
+  IDLE
+  CLOSED
+  INTERRUPTED
+}
+
+enum ChargingLimitType {
+  ENERGY
+  AMOUNT
+  FULL
+}
+
+enum DemandFactorSource {
+  RULE
+  MODEL
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -47,20 +67,21 @@ enum OneTimeTokenType {
 }
 
 model User {
-  id              String         @id @default(uuid())
+  id              String            @id @default(uuid())
   name            String
-  email           String         @unique
+  email           String            @unique
   passwordHash    String?
-  role            Role           @default(DRIVER)
+  role            Role              @default(DRIVER)
   emailVerifiedAt DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
   refreshTokens   RefreshToken[]
   oneTimeTokens   OneTimeToken[]
   identities      UserIdentity[]
   memberships     Membership[]
-  invitesSent     Invite[]       @relation("InvitesSent")
-  invitesAccepted Invite[]       @relation("InvitesAccepted")
+  invitesSent     Invite[]          @relation("InvitesSent")
+  invitesAccepted Invite[]          @relation("InvitesAccepted")
+  sessions        ChargingSession[]
 }
 
 model UserIdentity {
@@ -104,15 +125,19 @@ model OneTimeToken {
 }
 
 model Organization {
-  id           String           @id @default(uuid())
-  name         String
-  type         OrganizationType
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-  memberships  Membership[]
-  invites      Invite[]
-  chargePoints ChargePoint[]
-  tariffs      Tariff[]
+  id                  String            @id @default(uuid())
+  name                String
+  type                OrganizationType
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  memberships         Membership[]
+  invites             Invite[]
+  contractedDemandKw  Decimal?          @db.Decimal(7, 2)
+  commonAreaReserveKw Decimal?          @db.Decimal(7, 2)
+  minChargingPowerKw  Decimal?          @db.Decimal(5, 2)
+  chargePoints        ChargePoint[]
+  tariffs             Tariff[]
+  sessions            ChargingSession[]
 }
 
 model Membership {
@@ -150,20 +175,21 @@ model Invite {
 }
 
 model ChargePoint {
-  id             String          @id @default(uuid())
+  id             String            @id @default(uuid())
   organizationId String
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   code           String
   name           String
   type           ChargePointType
   latitude       Float
   longitude      Float
-  maxPowerKw     Decimal         @db.Decimal(6, 2)
-  isOnline       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  maxPowerKw     Decimal           @db.Decimal(6, 2)
+  isOnline       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
   chargers       Charger[]
   tariffs        Tariff[]
+  sessions       ChargingSession[]
 
   @@unique([organizationId, code])
   @@index([type])
@@ -197,4 +223,63 @@ model Tariff {
   createdAt             DateTime     @default(now())
 
   @@index([organizationId, chargePointId, validFrom])
+}
+
+model ChargingSession {
+  id                    String                @id @default(uuid())
+  userId                String
+  user                  User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chargePointId         String
+  chargePoint           ChargePoint           @relation(fields: [chargePointId], references: [id], onDelete: Cascade)
+  organizationId        String
+  organization          Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  unitLabel             String?
+  regime                ChargePointType
+  status                ChargingSessionStatus @default(PENDING)
+  limitType             ChargingLimitType     @default(FULL)
+  limitEnergyKwh        Decimal?              @db.Decimal(10, 3)
+  limitAmountCents      Int?
+  targetEnergyKwh       Decimal?              @db.Decimal(10, 3)
+  allocatedPowerKw      Decimal               @db.Decimal(6, 2)
+  batteryCapacityKwh    Decimal?              @db.Decimal(6, 2)
+  initialSocPercent     Int?
+  timeScale             Int                   @default(1)
+  lockedRateCents       Int
+  demandFactor          Decimal               @db.Decimal(4, 2)
+  demandFactorSource    DemandFactorSource
+  idleFeeCentsPerMinute Int
+  idleFeeCapCents       Int
+  gracePeriodMinutes    Int
+  externalTransactionId String?
+  startedAt             DateTime
+  chargingEndedAt       DateTime?
+  endedAt               DateTime?
+  telemetryReadAt       DateTime?
+  energyKwh             Decimal               @default(0) @db.Decimal(10, 3)
+  powerKw               Decimal               @default(0) @db.Decimal(6, 2)
+  socPercent            Int?
+  energyCostCents       Int                   @default(0)
+  idleMinutes           Int                   @default(0)
+  idleFeeCents          Int                   @default(0)
+  totalCents            Int                   @default(0)
+  anomalyScore          Decimal?              @db.Decimal(5, 4)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  readings              MeterReading[]
+
+  @@index([userId, status])
+  @@index([chargePointId, status])
+  @@index([organizationId, startedAt])
+}
+
+model MeterReading {
+  id         String          @id @default(uuid())
+  sessionId  String
+  session    ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  at         DateTime
+  energyKwh  Decimal         @db.Decimal(10, 3)
+  powerKw    Decimal         @db.Decimal(6, 2)
+  socPercent Int?
+
+  @@index([sessionId, at])
 }
