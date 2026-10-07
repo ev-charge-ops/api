@@ -39,6 +39,7 @@ describe('OpenAPI docs (e2e)', () => {
       ),
     );
     expect(operations.sort()).toEqual([
+      'DELETE /me/push-tokens/{token} removePushToken',
       'DELETE /organizations/{organizationId}/invites/{inviteId} revokeInvite',
       'GET /auth/me getMe',
       'GET /charge-points listChargePoints',
@@ -46,6 +47,7 @@ describe('OpenAPI docs (e2e)', () => {
       'GET /invites/{token} getInvitePreview',
       'GET /me/consents getMyConsents',
       'GET /me/data-export exportMyData',
+      'GET /me/notifications listMyNotifications',
       'GET /me/organizations listMyOrganizations',
       'GET /organizations/{organizationId}/invites listInvites',
       'GET /organizations/{organizationId}/members listOrganizationMembers',
@@ -74,6 +76,9 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /invites/{token}/accept acceptInvite',
       'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
       'POST /me/deletion-request requestAccountDeletion',
+      'POST /me/notifications/read-all markAllNotificationsRead',
+      'POST /me/notifications/{notificationId}/read markNotificationRead',
+      'POST /me/push-tokens registerPushToken',
       'POST /organizations/{organizationId}/invites createInvite',
       'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
       'POST /payments/stripe/webhook handleStripeWebhook',
