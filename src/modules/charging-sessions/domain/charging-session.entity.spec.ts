@@ -119,6 +119,16 @@ describe('ChargingSession', () => {
     expect(session.graceEndsAt).toEqual(at(250));
   });
 
+  it('tells when the idle fee starts and when it reaches the cap', () => {
+    expect(activeSession().idleStartsAt).toBeNull();
+    expect(activeSession().idleFeeCapReachedAt).toBeNull();
+
+    const session = finishedCharging();
+
+    expect(session.idleStartsAt).toEqual(at(250));
+    expect(session.idleFeeCapReachedAt).toEqual(at(250 + 120));
+  });
+
   it('stays in grace without fees until the grace period ends', () => {
     const session = finishedCharging();
     session.advance(at(249));
