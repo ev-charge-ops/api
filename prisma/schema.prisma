@@ -74,6 +74,7 @@ enum PaymentStatus {
   CAPTURED
   CANCELED
   FAILED
+  REFUNDED
 }
 
 enum ConsentPurpose {
@@ -129,31 +130,32 @@ enum OneTimeTokenType {
 }
 
 model User {
-  id               String            @id @default(uuid())
-  name             String
-  email            String            @unique
-  passwordHash     String?
-  role             Role              @default(DRIVER)
-  emailVerifiedAt  DateTime?
-  stripeCustomerId String?           @unique
-  paymentMode      PaymentMode       @default(TEST)
-  locationMode     LocationMode      @default(DEMO)
-  autoRefund       Boolean           @default(false)
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  refreshTokens    RefreshToken[]
-  oneTimeTokens    OneTimeToken[]
-  identities       UserIdentity[]
-  memberships      Membership[]
-  invitesSent      Invite[]          @relation("InvitesSent")
-  invitesAccepted  Invite[]          @relation("InvitesAccepted")
-  sessions         ChargingSession[]
-  anomalyReviews   ChargingSession[] @relation("AnomalyReviews")
-  consentRecords   ConsentRecord[]
-  deletionRequests DeletionRequest[]
-  pushTokens       PushToken[]
-  notifications    Notification[]
-  queueEntries     QueueEntry[]
+  id                   String            @id @default(uuid())
+  name                 String
+  email                String            @unique
+  passwordHash         String?
+  role                 Role              @default(DRIVER)
+  emailVerifiedAt      DateTime?
+  stripeCustomerId     String?           @unique
+  stripeLiveCustomerId String?           @unique
+  paymentMode          PaymentMode       @default(TEST)
+  locationMode         LocationMode      @default(DEMO)
+  autoRefund           Boolean           @default(false)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  refreshTokens        RefreshToken[]
+  oneTimeTokens        OneTimeToken[]
+  identities           UserIdentity[]
+  memberships          Membership[]
+  invitesSent          Invite[]          @relation("InvitesSent")
+  invitesAccepted      Invite[]          @relation("InvitesAccepted")
+  sessions             ChargingSession[]
+  anomalyReviews       ChargingSession[] @relation("AnomalyReviews")
+  consentRecords       ConsentRecord[]
+  deletionRequests     DeletionRequest[]
+  pushTokens           PushToken[]
+  notifications        Notification[]
+  queueEntries         QueueEntry[]
 }
 
 model UserIdentity {
@@ -377,6 +379,8 @@ model Payment {
   session               ChargingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   stripePaymentIntentId String          @unique
   stripeCustomerId      String
+  mode                  PaymentMode     @default(TEST)
+  autoRefund            Boolean         @default(false)
   status                PaymentStatus   @default(PENDING_AUTHORIZATION)
   currency              String          @default("BRL")
   authorizedCents       Int
@@ -385,6 +389,8 @@ model Payment {
   authorizedAt          DateTime?
   capturedAt            DateTime?
   canceledAt            DateTime?
+  refundedCents         Int?
+  refundedAt            DateTime?
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 }
