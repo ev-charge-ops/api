@@ -11,6 +11,8 @@ import {
   mockTelemetry,
 } from './../src/modules/charger-gateway/adapters/mock-charger.adapter.js';
 import { ChargerGateway } from './../src/modules/charger-gateway/charger-gateway.port.js';
+import { FakePaymentGateway } from './../src/modules/payments/adapters/fake-payment.adapter.js';
+import { PaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
 
 vi.hoisted(() => {
   process.env.AUTH_THROTTLE_LIMIT = '1000';
@@ -51,6 +53,7 @@ describe('Charging sessions (e2e)', () => {
   let visitorsPointId: string;
   let offlinePointId: string;
   let sessionId: string;
+  const payments = new FakePaymentGateway();
 
   async function register(name: string): Promise<Session> {
     const email = `${name.toLowerCase()}-${run}@example.com`;
@@ -90,6 +93,8 @@ describe('Charging sessions (e2e)', () => {
     })
       .overrideProvider(Clock)
       .useValue(clock)
+      .overrideProvider(PaymentGateway)
+      .useValue(payments)
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -228,6 +233,8 @@ describe('Charging sessions (e2e)', () => {
       demandFactorSource: 'RULE',
       totalCents: 0,
       simulationSpeed: SPEED,
+      payment: null,
+      paymentSheet: null,
     });
     expect(await pointStatus(privatePointId)).toBe('CHARGING');
   });
@@ -353,8 +360,18 @@ describe('Charging sessions (e2e)', () => {
       chargePointId: visitorsPointId,
       limit: { type: 'AMOUNT', value: 2000 },
     }).expect(201);
-
     expect(started.body).toMatchObject({
+      status: 'AWAITING_PAYMENT',
+      payment: { status: 'PENDING_AUTHORIZATION', authorizedCents: 5000 },
+    });
+    payments.confirm(started.body.payment.paymentIntentId);
+    const confirmed = await post(
+      `/sessions/${started.body.id}/payment/confirm`,
+      visitor,
+    ).expect(200);
+
+    expect(confirmed.body).toMatchObject({
+      status: 'ACTIVE',
       regime: 'COMMERCIAL',
       unitLabel: null,
       organizationId,
@@ -378,6 +395,7 @@ describe('Charging sessions (e2e)', () => {
       energyCostCents: 1041,
       idleFeeCents: 0,
       totalCents: 1041,
+      payment: { status: 'CAPTURED', capturedCents: 1041 },
     });
     const detail = await get(`/sessions/${started.body.id}`, visitor).expect(
       200,

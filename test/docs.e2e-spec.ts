@@ -73,7 +73,10 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
       'POST /organizations/{organizationId}/invites createInvite',
       'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
+      'POST /payments/stripe/webhook handleStripeWebhook',
       'POST /sessions startSession',
+      'POST /sessions/{sessionId}/payment/confirm confirmSessionPayment',
+      'POST /sessions/{sessionId}/payment/sheet createSessionPaymentSheet',
       'POST /sessions/{sessionId}/stop stopSession',
     ]);
     expect(response.body.components.securitySchemes).toHaveProperty('bearer');
