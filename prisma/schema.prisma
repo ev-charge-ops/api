@@ -15,6 +15,11 @@ enum Role {
   MANAGER
 }
 
+enum IdentityProvider {
+  GOOGLE
+  APPLE
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -25,13 +30,27 @@ model User {
   id              String         @id @default(uuid())
   name            String
   email           String         @unique
-  passwordHash    String
+  passwordHash    String?
   role            Role           @default(DRIVER)
   emailVerifiedAt DateTime?
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
   refreshTokens   RefreshToken[]
   oneTimeTokens   OneTimeToken[]
+  identities      UserIdentity[]
+}
+
+model UserIdentity {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider  IdentityProvider
+  subject   String
+  email     String?
+  createdAt DateTime         @default(now())
+
+  @@unique([provider, subject])
+  @@index([userId])
 }
 
 model RefreshToken {
