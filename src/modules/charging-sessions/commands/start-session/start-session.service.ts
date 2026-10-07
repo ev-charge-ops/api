@@ -22,6 +22,7 @@ import {
 import type { ChargingLimit } from '../../domain/charging-limit.js';
 import { ChargingSession } from '../../domain/charging-session.entity.js';
 import type { PaymentSheetDto } from '../../dto/payment-sheet.dto.js';
+import { SessionEvents, snapshotOf } from '../../session-events.js';
 import { SessionPayments } from '../../session-payments.js';
 import { SessionStarter } from '../../session-starter.js';
 import type {
@@ -43,6 +44,7 @@ export class StartSessionService {
     private readonly starter: SessionStarter,
     private readonly payments: SessionPayments,
     private readonly clock: Clock,
+    private readonly events: SessionEvents,
   ) {}
 
   async execute(
@@ -129,8 +131,11 @@ export class StartSessionService {
       this.logger.warn(
         `Payment for session ${session.id} could not be opened: ${String(error)}`,
       );
+      const before = snapshotOf(session);
       session.interrupt(this.clock.now());
-      await this.sessions.save(session, []);
+      if (await this.sessions.save(session, [])) {
+        await this.events.changed(before, session);
+      }
       await this.payments.settle(session);
       throw paymentProviderError(error);
     }
