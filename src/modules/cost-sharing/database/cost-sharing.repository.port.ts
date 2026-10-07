@@ -30,6 +30,8 @@ export interface OrganizationSessionFilters {
   range: MonthRange | null;
   unitLabel?: string;
   status?: ChargingSessionStatus;
+  chargePointId?: string;
+  anomaly?: boolean;
 }
 
 export interface OverviewSession {
