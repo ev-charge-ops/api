@@ -44,6 +44,8 @@ export const envSchema = z
     APPLE_CLIENT_IDS: commaSeparatedList(),
     GOOGLE_WEB_CLIENT_ID: z.string().trim().default(''),
     GOOGLE_CLIENT_SECRET: z.string().trim().default(''),
+    CHARGER_DRIVER: z.enum(['mock', 'sems']).default('mock'),
+    SIMULATION_SPEED: z.coerce.number().int().min(1).max(3600).default(60),
   })
   .superRefine((env, context) => {
     if (env.MAIL_DRIVER === 'resend' && !env.RESEND_API_KEY) {
