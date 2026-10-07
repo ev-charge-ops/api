@@ -26,8 +26,15 @@ export interface DemoChargePoint {
   tariff: DemoTariff | null;
 }
 
+export interface DemoSiteCapacity {
+  contractedDemandKw: number;
+  commonAreaReserveKw: number;
+  minChargingPowerKw: number;
+}
+
 export interface DemoSite {
   organizationId: string;
+  capacity: DemoSiteCapacity;
   tariff: DemoTariff;
   chargePoints: DemoChargePoint[];
 }
@@ -41,6 +48,11 @@ const IDLE_TERMS = {
 export function buildDemoSite(organizationId: string): DemoSite {
   return {
     organizationId,
+    capacity: {
+      contractedDemandKw: 75,
+      commonAreaReserveKw: 11.5,
+      minChargingPowerKw: 3.7,
+    },
     tariff: {
       id: '5b0e8c1d-2f3a-4b6c-8d7e-9f0a1b2c3d00',
       utilityRateCents: 89,
@@ -102,10 +114,17 @@ export function buildDemoSite(organizationId: string): DemoSite {
 }
 
 export async function upsertDemoSite(
-  prisma: Pick<PrismaClient, 'chargePoint' | 'charger' | 'tariff'>,
+  prisma: Pick<
+    PrismaClient,
+    'organization' | 'chargePoint' | 'charger' | 'tariff'
+  >,
   site: DemoSite,
 ): Promise<void> {
   const { organizationId } = site;
+  await prisma.organization.update({
+    where: { id: organizationId },
+    data: site.capacity,
+  });
   await upsertTariff(prisma, organizationId, null, site.tariff);
 
   for (const point of site.chargePoints) {

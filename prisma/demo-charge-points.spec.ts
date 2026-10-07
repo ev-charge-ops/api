@@ -48,9 +48,22 @@ describe('upsertDemoSite', () => {
     const chargePoint = { upsert: vi.fn().mockResolvedValue({}) };
     const charger = { upsert: vi.fn().mockResolvedValue({}) };
     const tariff = { upsert: vi.fn().mockResolvedValue({}) };
+    const organization = { update: vi.fn().mockResolvedValue({}) };
     const site = buildDemoSite(DEMO_ORGANIZATION_ID);
 
-    await upsertDemoSite({ chargePoint, charger, tariff } as never, site);
+    await upsertDemoSite(
+      { organization, chargePoint, charger, tariff } as never,
+      site,
+    );
+
+    expect(organization.update).toHaveBeenCalledWith({
+      where: { id: DEMO_ORGANIZATION_ID },
+      data: {
+        contractedDemandKw: 75,
+        commonAreaReserveKw: 11.5,
+        minChargingPowerKw: 3.7,
+      },
+    });
 
     expect(chargePoint.upsert).toHaveBeenCalledTimes(3);
     expect(charger.upsert).toHaveBeenCalledTimes(3);
