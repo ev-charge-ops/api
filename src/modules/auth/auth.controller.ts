@@ -25,11 +25,14 @@ import type { AuthenticatedUser } from '../../common/types/authenticated-user.js
 import { UserResponseDto } from '../users/dto/user.response.dto.js';
 import { AuthService } from './auth.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
+import { PasswordResetService } from './password-reset.service.js';
 import { AuthResponseDto } from './dto/auth.response.dto.js';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { LoginDto } from './dto/login.dto.js';
 import { RefreshTokenDto } from './dto/refresh-token.dto.js';
 import { RegisterDto } from './dto/register.dto.js';
+import { ResetPasswordDto } from './dto/reset-password.dto.js';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -37,6 +40,7 @@ export class AuthController {
   constructor(
     private readonly auth: AuthService,
     private readonly emailVerification: EmailVerificationService,
+    private readonly passwordReset: PasswordResetService,
   ) {}
 
   @Public()
@@ -130,5 +134,39 @@ export class AuthController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<void> {
     return this.emailVerification.resend(user.id);
+  }
+
+  @Public()
+  @AuthRateLimit()
+  @Post('password/forgot')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    operationId: 'forgotPassword',
+    summary: 'Send a password reset link if the email is registered',
+  })
+  @ApiAcceptedResponse({
+    description: 'Always accepted, whether or not the email is registered',
+  })
+  @ApiBadRequestResponse({ description: 'Invalid payload' })
+  forgotPassword(@Body() dto: ForgotPasswordDto): Promise<void> {
+    return this.passwordReset.requestReset(dto.email);
+  }
+
+  @Public()
+  @AuthRateLimit()
+  @Post('password/reset')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({
+    operationId: 'resetPassword',
+    summary: 'Set a new password with the token sent by email',
+  })
+  @ApiNoContentResponse({
+    description: 'Password updated and every session revoked',
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid payload or invalid, expired or used token',
+  })
+  resetPassword(@Body() dto: ResetPasswordDto): Promise<void> {
+    return this.passwordReset.resetPassword(dto.token, dto.password);
   }
 }
