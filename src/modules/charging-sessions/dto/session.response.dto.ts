@@ -65,8 +65,32 @@ export class SessionResponseDto {
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   chargingEndedAt: Date | null;
 
-  @ApiProperty({ type: String, format: 'date-time', nullable: true })
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'Real time when the free grace period ends, set once charging ends; schedule the reminder to unplug for this instant',
+  })
   graceEndsAt: Date | null;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'Real time when the idle fee starts to accrue (same instant as graceEndsAt)',
+  })
+  idleStartsAt: Date | null;
+
+  @ApiProperty({
+    type: String,
+    format: 'date-time',
+    nullable: true,
+    description:
+      'Real time when the idle fee reaches its cap, null without an idle fee',
+  })
+  idleFeeCapReachedAt: Date | null;
 
   @ApiProperty({ type: String, format: 'date-time', nullable: true })
   endedAt: Date | null;

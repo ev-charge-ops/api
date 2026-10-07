@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ChargePointsModule } from '../charge-points/charge-points.module.js';
 import { ChargerGatewayModule } from '../charger-gateway/charger-gateway.module.js';
 import { IntelligenceModule } from '../intelligence/intelligence.module.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 import { PaymentsModule } from '../payments/payments.module.js';
 import { ConfirmSessionPaymentController } from './commands/confirm-session-payment/confirm-session-payment.controller.js';
 import { ConfirmSessionPaymentService } from './commands/confirm-session-payment/confirm-session-payment.service.js';
@@ -22,6 +23,7 @@ import { GetSessionController } from './queries/get-session/get-session.controll
 import { GetSessionService } from './queries/get-session/get-session.service.js';
 import { ListMySessionsController } from './queries/list-my-sessions/list-my-sessions.controller.js';
 import { ListMySessionsService } from './queries/list-my-sessions/list-my-sessions.service.js';
+import { SessionEvents } from './session-events.js';
 import { SessionPayments } from './session-payments.js';
 import { SessionStarter } from './session-starter.js';
 import { SessionSynchronizer } from './session-synchronizer.js';
@@ -31,6 +33,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     ChargePointsModule,
     ChargerGatewayModule,
     IntelligenceModule,
+    NotificationsModule,
     PaymentsModule,
   ],
   controllers: [
@@ -49,6 +52,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
       useClass: ChargingSessionPrismaRepository,
     },
     PaymentRecordsRepository,
+    SessionEvents,
     SessionStarter,
     SessionPayments,
     SessionSynchronizer,

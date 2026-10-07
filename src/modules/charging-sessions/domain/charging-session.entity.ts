@@ -196,6 +196,23 @@ export class ChargingSession {
     return addSessionMinutes(chargingEndedAt, gracePeriodMinutes, timeScale);
   }
 
+  get idleStartsAt(): Date | null {
+    return this.graceEndsAt;
+  }
+
+  get idleFeeCapReachedAt(): Date | null {
+    const idleStartsAt = this.idleStartsAt;
+    const { idleFeeCentsPerMinute, idleFeeCapCents, timeScale } = this.props;
+    if (!idleStartsAt || idleFeeCentsPerMinute <= 0) {
+      return null;
+    }
+    return addSessionMinutes(
+      idleStartsAt,
+      Math.ceil(idleFeeCapCents / idleFeeCentsPerMinute),
+      timeScale,
+    );
+  }
+
   toProps(): ChargingSessionProps {
     return {
       ...this.props,

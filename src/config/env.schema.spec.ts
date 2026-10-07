@@ -20,6 +20,8 @@ describe('validateEnv', () => {
       AUTH_THROTTLE_LIMIT: 10,
       MAIL_DRIVER: 'console',
       MAIL_FROM: 'EV ChargeOps <noreply@evchargeops.com.br>',
+      PUSH_DRIVER: 'console',
+      EXPO_ACCESS_TOKEN: '',
       APP_URL: 'http://localhost:5173',
       GOOGLE_CLIENT_IDS: [],
       APPLE_CLIENT_IDS: [],
@@ -34,6 +36,15 @@ describe('validateEnv', () => {
       PAYMENT_HOLD_ENERGY_KWH: 60,
       PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES: 15,
     });
+  });
+
+  it('accepts the expo push driver and rejects unknown ones', () => {
+    expect(validateEnv({ ...validEnv, PUSH_DRIVER: 'expo' }).PUSH_DRIVER).toBe(
+      'expo',
+    );
+    expect(() => validateEnv({ ...validEnv, PUSH_DRIVER: 'fcm' })).toThrow(
+      /PUSH_DRIVER/,
+    );
   });
 
   it('coerces the payment hold settings and rejects invalid ones', () => {

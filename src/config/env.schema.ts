@@ -36,6 +36,8 @@ export const envSchema = z
     MAIL_DRIVER: z.enum(['console', 'resend']).default('console'),
     MAIL_FROM: z.string().min(1).default(DEFAULT_MAIL_FROM),
     RESEND_API_KEY: z.string().trim().optional(),
+    PUSH_DRIVER: z.enum(['console', 'expo']).default('console'),
+    EXPO_ACCESS_TOKEN: z.string().trim().default(''),
     APP_URL: z
       .url()
       .default('http://localhost:5173')
