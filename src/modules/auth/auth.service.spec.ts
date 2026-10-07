@@ -7,6 +7,7 @@ import type { PrismaService } from '../../database/prisma.service.js';
 import type { RefreshToken, User } from '../../generated/prisma/client.js';
 import { UsersService } from '../users/users.service.js';
 import { AuthService } from './auth.service.js';
+import type { EmailVerificationService } from './email-verification.service.js';
 import { PasswordService } from './password.service.js';
 import { RefreshTokenService } from './refresh-token.service.js';
 
@@ -33,6 +34,7 @@ function createInMemoryPrisma() {
         const user: User = {
           id: randomUUID(),
           role: 'DRIVER',
+          emailVerifiedAt: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           ...data,
@@ -84,6 +86,7 @@ describe('AuthService', () => {
   let prisma: ReturnType<typeof createInMemoryPrisma>;
   let jwt: JwtService;
   let service: AuthService;
+  let emailVerification: { sendVerificationEmail: ReturnType<typeof vi.fn> };
 
   const registration = {
     name: 'Ana Souza',
@@ -96,11 +99,15 @@ describe('AuthService', () => {
     const prismaService = prisma as unknown as PrismaService;
     const config = { get: () => 7 } as unknown as ConfigService<Env, true>;
     jwt = new JwtService({ secret: 'test-secret' });
+    emailVerification = {
+      sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
+    };
     service = new AuthService(
       new UsersService(prismaService),
       new PasswordService(),
       new RefreshTokenService(prismaService, config),
       jwt,
+      emailVerification as unknown as EmailVerificationService,
     );
   });
 
@@ -116,7 +123,16 @@ describe('AuthService', () => {
         name: 'Ana Souza',
         email: 'ana@example.com',
         role: 'DRIVER',
+        emailVerified: false,
       });
+    });
+
+    it('sends the verification email to the new user', async () => {
+      await service.register(registration);
+
+      expect(emailVerification.sendVerificationEmail).toHaveBeenCalledWith(
+        prisma.users[0],
+      );
     });
 
     it('issues an access token carrying the user id and role', async () => {
