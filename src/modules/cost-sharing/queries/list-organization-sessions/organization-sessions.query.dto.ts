@@ -10,9 +10,9 @@ import {
   MaxLength,
 } from 'class-validator';
 import { PaginationQueryDto } from '../../../../common/pagination/pagination.query.dto.js';
+import { MONTH_PATTERN } from '../../../../common/time/month.query.dto.js';
 import { ChargingSessionStatus } from '../../../../generated/prisma/enums.js';
 import { parseBooleanQuery, trimString } from '../../../auth/dto/transforms.js';
-import { MONTH_PATTERN } from '../get-monthly-statement/month.query.dto.js';
 
 export class OrganizationSessionsQueryDto extends PaginationQueryDto {
   @ApiPropertyOptional({ example: '2026-08', pattern: MONTH_PATTERN.source })
