@@ -1,6 +1,15 @@
 import 'dotenv/config';
 import { PrismaClient } from '../src/generated/prisma/client.js';
 import { createPrismaAdapter } from '../src/database/prisma-adapter.factory.js';
+import { MlAnomalyScorer } from '../src/modules/intelligence/anomaly/ml-anomaly-scorer.js';
+import { MlHttpClient } from '../src/modules/intelligence/ml/ml-http-client.js';
+import {
+  buildDemoAnomalies,
+  FallbackAnomalyScorer,
+  findOccupiedIntervals,
+  insertDemoAnomalies,
+  RuleAnomalyScorer,
+} from './demo-anomalies.js';
 import { buildDemoSite, upsertDemoSite } from './demo-charge-points.js';
 import {
   buildDemoHistory,
@@ -13,6 +22,9 @@ import {
   upsertDemoOrganization,
 } from './demo-organization.js';
 import { buildDemoUsers, parseSeedEnv, upsertDemoUsers } from './demo-users.js';
+
+const DEFAULT_ML_URL = 'https://ml.evchargeops.com.br';
+const SEED_ML_TIMEOUT_MS = 10_000;
 
 async function main(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
@@ -48,21 +60,54 @@ async function main(): Promise<void> {
     const demoDriver = await prisma.user.findUniqueOrThrow({
       where: { email: env.SEED_DRIVER_EMAIL },
     });
+    const now = new Date();
+    const points = site.chargePoints.map((point) => ({
+      id: point.id,
+      code: point.code,
+      type: point.type,
+      maxPowerKw: point.maxPowerKw,
+      rateCents: point.tariff?.baseRateCents ?? site.tariff.utilityRateCents,
+    }));
+    const drivers = [
+      ...residents,
+      { userId: demoDriver.id, unitLabel: 'B · 42' },
+    ];
     const history = buildDemoHistory({
       organizationId: organization.id,
-      now: new Date(),
-      points: site.chargePoints.map((point) => ({
-        id: point.id,
-        code: point.code,
-        type: point.type,
-        maxPowerKw: point.maxPowerKw,
-        rateCents: point.tariff?.baseRateCents ?? site.tariff.utilityRateCents,
-      })),
-      drivers: [...residents, { userId: demoDriver.id, unitLabel: 'B · 42' }],
+      now,
+      points,
+      drivers,
     });
     const inserted = await insertDemoHistory(prisma, history);
     console.log(
       `Seeded ${residents.length} residents and ${inserted} of ${history.length} historical sessions`,
+    );
+
+    const anomalies = buildDemoAnomalies({
+      organizationId: organization.id,
+      now,
+      points,
+      drivers,
+      occupied: await findOccupiedIntervals(
+        prisma,
+        points.map((point) => point.id),
+        now,
+      ),
+    });
+    const mlUrl = process.env.ML_URL || DEFAULT_ML_URL;
+    const scorer = new FallbackAnomalyScorer(
+      new MlAnomalyScorer(
+        new MlHttpClient({ baseUrl: mlUrl, timeoutMs: SEED_ML_TIMEOUT_MS }),
+      ),
+      new RuleAnomalyScorer(),
+    );
+    const insertedAnomalies = await insertDemoAnomalies(
+      prisma,
+      anomalies,
+      scorer,
+    );
+    console.log(
+      `Seeded ${insertedAnomalies} of ${anomalies.length} anomalous sessions scored by ${mlUrl} with the rule fallback`,
     );
   } finally {
     await prisma.$disconnect();
