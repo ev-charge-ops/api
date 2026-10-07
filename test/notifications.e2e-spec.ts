@@ -500,7 +500,13 @@ describe('Notifications (e2e)', () => {
       projectedIdleStartsAt: projected.idleStartsAt,
     });
 
-    const [idleFee, complete] = await notificationsOf(driver);
+    const notifications = await notificationsOf(driver);
+    const complete = notifications.find(
+      (notification) => notification.type === 'CHARGING_COMPLETE',
+    );
+    const idleFee = notifications.find(
+      (notification) => notification.type === 'IDLE_FEE_STARTED',
+    );
     expect(complete).toMatchObject({
       type: 'CHARGING_COMPLETE',
       data: { sessionId },
