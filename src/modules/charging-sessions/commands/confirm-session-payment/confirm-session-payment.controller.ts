@@ -7,6 +7,7 @@ import {
   Post,
 } from '@nestjs/common';
 import {
+  ApiBadGatewayResponse,
   ApiBearerAuth,
   ApiConflictResponse,
   ApiNotFoundResponse,
@@ -18,26 +19,31 @@ import {
 import { CurrentUser } from '../../../../common/decorators/current-user.decorator.js';
 import type { AuthenticatedUser } from '../../../../common/types/authenticated-user.js';
 import { SessionResponseDto } from '../../dto/session.response.dto.js';
-import { StopSessionService } from './stop-session.service.js';
+import { ConfirmSessionPaymentService } from './confirm-session-payment.service.js';
 
 @ApiTags('sessions')
 @ApiBearerAuth()
 @ApiUnauthorizedResponse({ description: 'Missing or invalid access token' })
 @Controller('sessions')
-export class StopSessionController {
-  constructor(private readonly service: StopSessionService) {}
+export class ConfirmSessionPaymentController {
+  constructor(private readonly service: ConfirmSessionPaymentService) {}
 
-  @Post(':sessionId/stop')
+  @Post(':sessionId/payment/confirm')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    operationId: 'stopSession',
+    operationId: 'confirmSessionPayment',
     summary:
-      'End the session: stops charging early with the partial energy, or unplugs during grace/idle freezing the idle fee. Card payments are captured with the final amount, or released when nothing is due or the session is canceled before charging',
+      'Check the card hold with Stripe after the PaymentSheet completes: an authorized hold starts charging, a canceled one interrupts the session. Idempotent and safe to call again (the Stripe webhook does the same)',
   })
   @ApiOkResponse({ type: SessionResponseDto })
   @ApiNotFoundResponse({ description: 'SESSION_NOT_FOUND' })
-  @ApiConflictResponse({ description: 'SESSION_ALREADY_ENDED' })
-  stopSession(
+  @ApiConflictResponse({
+    description: 'PAYMENT_NOT_REQUIRED: the session is not paid by card',
+  })
+  @ApiBadGatewayResponse({
+    description: 'PAYMENT_PROVIDER_ERROR: Stripe could not be reached',
+  })
+  confirmSessionPayment(
     @CurrentUser() user: AuthenticatedUser,
     @Param(
       'sessionId',

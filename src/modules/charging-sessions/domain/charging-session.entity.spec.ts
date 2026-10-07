@@ -42,7 +42,7 @@ function newSession(
 
 function activeSession(limit?: ChargingLimit): ChargingSession {
   const session = newSession(limit);
-  session.activate('tx-1', VEHICLE);
+  session.activate('tx-1', VEHICLE, STARTED_AT);
   return session;
 }
 
@@ -85,7 +85,7 @@ describe('ChargingSession', () => {
   it('only activates pending sessions', () => {
     const session = activeSession();
 
-    expect(() => session.activate('tx-2', VEHICLE)).toThrow(
+    expect(() => session.activate('tx-2', VEHICLE, STARTED_AT)).toThrow(
       InvalidSessionTransitionError,
     );
   });
@@ -170,7 +170,7 @@ describe('ChargingSession', () => {
 
   it('counts grace and idle time in simulated minutes', () => {
     const session = newSession({ type: 'FULL' }, 60);
-    session.activate('tx-1', VEHICLE);
+    session.activate('tx-1', VEHICLE, STARTED_AT);
     const completedAt = new Date(STARTED_AT.getTime() + 240_000);
     session.recordTelemetry(
       { at: completedAt, energyWh: 29_000, powerKw: 0, socPercent: 100 },

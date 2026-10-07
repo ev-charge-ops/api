@@ -16,6 +16,7 @@ import {
 } from '../../domain/charging-session.entity.js';
 import { SessionStatus } from '../../domain/session-status.js';
 import type { SessionResponseDto } from '../../dto/session.response.dto.js';
+import { SessionPayments } from '../../session-payments.js';
 import { SessionSynchronizer } from '../../session-synchronizer.js';
 import { sessionFeatures } from './session-features.js';
 
@@ -26,6 +27,7 @@ export class StopSessionService {
     private readonly synchronizer: SessionSynchronizer,
     private readonly gateway: ChargerGateway,
     private readonly anomalyScorer: AnomalyScorer,
+    private readonly payments: SessionPayments,
     private readonly clock: Clock,
   ) {}
 
@@ -65,6 +67,7 @@ export class StopSessionService {
       throw alreadyEnded();
     }
     await this.scoreAnomaly(session);
+    await this.payments.settle(session);
     return toResponse(session);
   }
 

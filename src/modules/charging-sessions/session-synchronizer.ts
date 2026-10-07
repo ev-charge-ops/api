@@ -6,16 +6,29 @@ import type {
   MeterSample,
 } from './domain/charging-session.entity.js';
 import { SessionStatus } from './domain/session-status.js';
+import { SessionPayments } from './session-payments.js';
 
 @Injectable()
 export class SessionSynchronizer {
   constructor(
     private readonly sessions: ChargingSessionRepository,
     private readonly gateway: ChargerGateway,
+    private readonly payments: SessionPayments,
   ) {}
 
   async sync(session: ChargingSession, now: Date): Promise<ChargingSession> {
     if (!session.isOpen) {
+      await this.payments.settle(session);
+      return session;
+    }
+    if (
+      session.isPaymentOverdue(now, this.payments.authorizationTimeoutMinutes)
+    ) {
+      session.interrupt(now);
+      if (!(await this.sessions.save(session, []))) {
+        return (await this.sessions.findById(session.id)) ?? session;
+      }
+      await this.payments.settle(session);
       return session;
     }
     const readings = await this.readTelemetry(session, now);
