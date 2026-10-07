@@ -9,6 +9,7 @@ import { DatabaseModule } from './database/database.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { ChargePointsModule } from './modules/charge-points/charge-points.module.js';
 import { ChargingSessionsModule } from './modules/charging-sessions/charging-sessions.module.js';
+import { CostSharingModule } from './modules/cost-sharing/cost-sharing.module.js';
 import { InvitesModule } from './modules/invites/invites.module.js';
 import { MailModule } from './modules/mail/mail.module.js';
 import { OrganizationsModule } from './modules/organizations/organizations.module.js';
@@ -27,6 +28,7 @@ import { UsersModule } from './modules/users/users.module.js';
     InvitesModule,
     ChargePointsModule,
     ChargingSessionsModule,
+    CostSharingModule,
   ],
   controllers: [AppController],
   providers: [
