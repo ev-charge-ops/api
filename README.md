@@ -1,124 +1,211 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# EV ChargeOps — API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+**Enterprise Challenge 2026 — FIAP × GoodWe · Grupo 23 · Sprint 02**
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+API REST do EV ChargeOps, a plataforma de gestão de recarga de veículos elétricos em infraestrutura compartilhada. Ela concentra o domínio do produto: contas e organizações, pontos de recarga e tarifas, sessões de recarga, preço com fator de demanda da IA, pagamento no cartão do ponto comercial e rateio mensal por unidade do condomínio.
 
-## Description
+O app do motorista ([`mobile`](https://github.com/ev-charge-ops/mobile)) e o portal do gestor ([`web`](https://github.com/ev-charge-ops/web)) consomem esta API, e ela chama o serviço de IA ([`ml`](https://github.com/ev-charge-ops/ml)) para o fator de demanda e a detecção de anomalias.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+> A visão geral da solução, a arquitetura, as decisões (ADRs) e o roteiro de avaliação estão no repositório hub [`ev-charge-ops/docs`](https://github.com/ev-charge-ops/docs), a partir do [README](https://github.com/ev-charge-ops/docs#readme).
 
-## Project setup
+## Produção
 
-```bash
-$ npm install
+- **API:** [api.evchargeops.com.br](https://api.evchargeops.com.br)
+- **Swagger:** [api.evchargeops.com.br/docs](https://api.evchargeops.com.br/docs)
+- **OpenAPI (JSON):** [api.evchargeops.com.br/docs-json](https://api.evchargeops.com.br/docs-json), usado pelo `web` e pelo `mobile` para gerar os tipos do cliente
+
+As contas de demonstração estão descritas no [README do `docs`](https://github.com/ev-charge-ops/docs#6-como-testar-a-demonstração-em-produção). As senhas estão no arquivo da entrega e não ficam publicadas.
+
+## Stack
+
+| Camada | Tecnologia |
+|---|---|
+| Runtime | Node 24, TypeScript 6, ES modules |
+| Framework | NestJS 12 (`@nestjs/core`, `@nestjs/config`, `@nestjs/jwt`, `@nestjs/swagger`) |
+| Banco | PostgreSQL 17, Prisma 7 (`@prisma/adapter-pg` local e `@prisma/adapter-neon` na Vercel) |
+| Validação | `class-validator` e `class-transformer` nos DTOs, Zod nas variáveis de ambiente |
+| Autenticação | `@node-rs/argon2` (Argon2id), JWT, `jose` para validar tokens do Google e da Apple |
+| Integrações | `stripe` (modo de teste), `resend` (e-mail transacional), serviço `ml` por HTTP |
+| Qualidade | Vitest 4 + Supertest, `oxlint` com regras type-aware, Prettier |
+
+## Principais funcionalidades
+
+### Contas, organizações e convites
+
+- Cadastro e login com e-mail e senha (Argon2id), access token JWT de 15 min e refresh token opaco com rotação e revogação ([ADR 0007](https://github.com/ev-charge-ops/docs/blob/main/adr/0007-authentication.md)).
+- Verificação de e-mail, recuperação de senha, login sem senha por código ou link, login com Google e Apple ([ADR 0008](https://github.com/ev-charge-ops/docs/blob/main/adr/0008-authentication-flows.md)).
+- Organizações (o condomínio) com papéis de gestor e motorista, unidade do morador e convites por e-mail com deep link.
+- E-mails transacionais pelo Resend ou, em desenvolvimento, impressos no log ([ADR 0009](https://github.com/ev-charge-ops/docs/blob/main/adr/0009-domain-and-email.md)).
+- Rate limit por IP, mais restrito nas rotas de autenticação. Ele fica em memória por instância.
+
+### Pontos de recarga e tarifas
+
+- Pontos `PRIVATE` (rede do condomínio) e `COMMERCIAL` (visitantes), com estado, potência e capacidade elétrica do local (demanda contratada menos a reserva das áreas comuns).
+- Tarifa versionada pelo gestor: cada alteração cria uma versão nova com data de vigência, e uma tarifa específica do ponto tem prioridade sobre a da organização.
+
+### Preço com fator de demanda da IA
+
+Implementado em [`tariff-rules.ts`](src/modules/charge-points/tariff-rules.ts) e em [`src/modules/intelligence`](src/modules/intelligence) ([ADR 0011](https://github.com/ev-charge-ops/docs/blob/main/adr/0011-pricing-with-demand-factor.md)).
+
+- **Ponto `PRIVATE`:** cobra a tarifa da concessionária, sem margem sobre a energia. O fator de demanda é calculado e exibido **apenas como informação** para o morador (`demandFactorApplied = false`).
+- **Ponto `COMMERCIAL`:** cobra `tarifa base × fator de demanda`, arredondado em centavos.
+- O fator vem do modelo do serviço `ml` (`POST /demand-factor`, timeout de 1,5 s). Se o serviço estiver fora, lento ou devolver um valor inválido, ou se `ML_URL` estiver vazio, entram as regras por horário e ocupação. A sessão grava a origem do fator (`MODEL` ou `RULE`) e a versão do modelo.
+
+### Sessões de recarga
+
+Implementadas em [`src/modules/charging-sessions`](src/modules/charging-sessions) ([ADR 0010](https://github.com/ev-charge-ops/docs/blob/main/adr/0010-charging-session-state-machine.md)).
+
+- Máquina de estados `AWAITING_PAYMENT → PENDING → ACTIVE → GRACE → IDLE → CLOSED / INTERRUPTED` numa entidade de domínio sem dependência do Nest ou do Prisma.
+- Tarifa, fator de demanda, tolerância e multa por ocupação ficam travados no início da sessão.
+- Limite de recarga escolhido pelo motorista: até 100%, em kWh ou em R$.
+- Um motorista tem no máximo uma sessão aberta, e um ponto atende uma sessão por vez. A potência é alocada pela capacidade disponível do local.
+- **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
+- O carregador fica atrás da port `ChargerGateway`. O adapter `mock` simula a telemetria com tempo acelerado (`SIMULATION_SPEED`, 60 por padrão: 1 s real = 1 min de recarga). O adapter `sems` (API da GoodWe) ainda responde `501`.
+
+### Detecção de anomalias
+
+Implementada em [`ml-anomaly-scorer.ts`](src/modules/intelligence/anomaly/ml-anomaly-scorer.ts) ([ADR 0012](https://github.com/ev-charge-ops/docs/blob/main/adr/0012-anomaly-detection.md)).
+
+- Ao encerrar a sessão, a API monta as variáveis da sessão e chama `POST /anomaly-score` no serviço `ml`. O score, o indicador de anomalia e a versão do modelo ficam gravados na sessão.
+- **Não há fallback por regras.** Se a chamada falhar, passar do timeout ou devolver algo inválido, a sessão fecha normalmente e **fica sem score**, e o erro vai para o log. Sem `ML_URL`, nenhuma sessão é pontuada.
+- O gestor vê as anomalias na visão geral, filtra as sessões sinalizadas e abre a explicação do score no portal.
+
+### Pagamento no ponto comercial (Stripe)
+
+Implementado em [`src/modules/payments`](src/modules/payments) e [`session-payments.ts`](src/modules/charging-sessions/session-payments.ts) ([ADR 0014](https://github.com/ev-charge-ops/docs/blob/main/adr/0014-stripe-preauthorization.md)).
+
+- **Só o ponto `COMMERCIAL`** usa pré-autorização no cartão. Os pontos `PRIVATE` são cobrados pelo rateio mensal.
+- A API cria um PaymentIntent com captura manual em **modo de teste** do Stripe e devolve os parâmetros do PaymentSheet para o app. O cartão é digitado no componente do Stripe e não passa pela API.
+- O webhook `POST /payments/stripe/webhook` (assinatura verificada e idempotente) ou a confirmação feita pelo app liberam a sessão. No encerramento, a API captura só o valor consumido e cancela o bloqueio quando não há o que cobrar.
+- Sem `STRIPE_SECRET_KEY`, iniciar sessão no ponto comercial responde `503 PAYMENTS_UNAVAILABLE`, e os pontos privados continuam funcionando.
+
+### Rateio mensal e visão geral
+
+Implementados em [`src/modules/cost-sharing`](src/modules/cost-sharing) ([ADR 0013](https://github.com/ev-charge-ops/docs/blob/main/adr/0013-monthly-cost-sharing.md)).
+
+- Extrato do mês por unidade: energia (kWh × tarifa travada) + taxa de acesso + multas por ocupação, só com sessões de pontos `PRIVATE`.
+- Exportação do extrato em CSV, no formato do Excel em português.
+- Visão geral do mês para o gestor: consumo, valores, capacidade elétrica, alerta de demanda e anomalias recentes.
+
+A lista completa de endpoints, com exemplos, está no [Swagger](https://api.evchargeops.com.br/docs).
+
+## Estrutura de pastas
+
+```
+api/
+├── .github/workflows/        CI e limpeza do banco de preview do Neon
+├── prisma/
+│   ├── schema.prisma         modelo de dados
+│   ├── migrations/           migrações SQL versionadas
+│   ├── seed.ts               seed da demonstração (Residencial Aclimação)
+│   └── demo-*.ts             montagem do condomínio, usuários, pontos, histórico e anomalias do seed
+├── src/
+│   ├── main.ts               bootstrap do Nest (proxy, CORS e Swagger)
+│   ├── app.module.ts         módulo raiz
+│   ├── config/               validação das variáveis de ambiente com Zod
+│   ├── database/             PrismaService e escolha do adapter (pg ou Neon)
+│   ├── common/               código compartilhado
+│   │   ├── clock/            relógio injetável, para testes com tempo controlado
+│   │   ├── cors/             origens permitidas
+│   │   ├── decorators/       @Public, @Roles e @CurrentUser
+│   │   ├── guards/           guard de papéis
+│   │   ├── pagination/       DTO de paginação
+│   │   ├── rate-limit/       limitador de janela fixa em memória
+│   │   ├── swagger/          documento OpenAPI em /docs e /docs-json
+│   │   ├── time/             calendário de São Paulo
+│   │   ├── timing/           tempo de resposta mínimo nas rotas de login
+│   │   ├── types/            tipos do usuário autenticado
+│   │   └── validation/       validadores customizados
+│   └── modules/
+│       ├── auth/             cadastro, login, tokens, verificação de e-mail, senha, login sem senha, Google e Apple
+│       ├── users/            usuários
+│       ├── organizations/    organizações, membros e guard de papel na organização
+│       ├── invites/          convites de moradores
+│       ├── mail/             envio de e-mail (Resend ou console) e templates
+│       ├── charge-points/    pontos, capacidade do local e tarifas versionadas
+│       ├── charger-gateway/  port do carregador e adapters (mock e sems)
+│       ├── charging-sessions/
+│       │   ├── domain/       entidade da sessão, estados, multas, limite e pagamento
+│       │   ├── commands/     iniciar, encerrar, PaymentSheet, confirmação e webhook do Stripe
+│       │   ├── queries/      sessão ativa, detalhe e histórico
+│       │   └── database/     repositório Prisma
+│       ├── cost-sharing/     rateio mensal, CSV, visão geral e sessões da organização
+│       ├── intelligence/     fator de demanda (modelo + regras) e score de anomalia
+│       └── payments/         port de pagamento e adapter do Stripe
+├── test/                     testes e2e (Vitest + Supertest contra Postgres)
+├── prisma.config.ts          caminho do schema, migrações e comando do seed
+├── vercel.json               região gru1 e comando de build
+├── vitest.config.ts          testes unitários
+└── vitest.config.e2e.ts      testes e2e
 ```
 
-## Compile and run the project
+Os módulos de sessões e de rateio separam comandos (`commands/`) e consultas (`queries/`), e as regras de negócio ficam em `domain/`, testadas sem banco. O cliente do Prisma é gerado em `src/generated/` e não é versionado.
+
+## Como rodar localmente
+
+Requisitos: Node 24 e um PostgreSQL 17 acessível.
+
+### 1. Variáveis de ambiente
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+cp .env.example .env
 ```
 
-## Run tests
+O [`.env.example`](.env.example) documenta todas as variáveis. Preencha os valores secretos com dados próprios; nenhum segredo fica no repositório.
+
+| Variável | Uso |
+|---|---|
+| `NODE_ENV`, `PORT` | ambiente e porta (padrão `3000`) |
+| `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | conexão com o Postgres; a segunda é usada pelas migrações e pelo seed |
+| `JWT_SECRET`, `JWT_ACCESS_TTL`, `REFRESH_TTL_DAYS` | segredo e validade dos tokens (defina um segredo longo e aleatório) |
+| `CORS_ORIGINS`, `APP_URL` | origens permitidas e URL do portal usada nos links dos e-mails |
+| `THROTTLE_TTL_SECONDS`, `THROTTLE_LIMIT`, `AUTH_THROTTLE_LIMIT`, `TRUST_PROXY` | rate limit |
+| `MAIL_DRIVER`, `MAIL_FROM`, `RESEND_API_KEY` | e-mail; com `MAIL_DRIVER=console` os e-mails saem no log e a chave não é necessária |
+| `GOOGLE_CLIENT_IDS`, `APPLE_CLIENT_IDS`, `GOOGLE_WEB_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | login com Google e Apple; vazios desligam o provedor |
+| `CHARGER_DRIVER`, `SIMULATION_SPEED` | adapter do carregador (`mock`) e aceleração da simulação |
+| `ML_URL` | serviço de IA; vazio usa as regras no fator de demanda e deixa as sessões sem score de anomalia |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PUBLISHABLE_KEY` | Stripe em modo de teste; vazios desligam o ponto comercial |
+| `PAYMENT_HOLD_ENERGY_KWH`, `PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES` | valor da pré-autorização e prazo para o cartão ser autorizado |
+| `SEED_MANAGER_EMAIL`, `SEED_MANAGER_PASSWORD`, `SEED_DRIVER_EMAIL`, `SEED_DRIVER_PASSWORD` | contas de demonstração criadas pelo seed; as senhas são obrigatórias para rodar o seed |
+
+### 2. Instalação, banco e seed
 
 ```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm ci                     # instala e roda prisma generate (postinstall)
+npm run prisma:migrate     # prisma migrate dev: aplica as migrações no banco local
+npm run db:seed            # prisma db seed: cria o condomínio de demonstração
 ```
 
-## Deployment
+O seed cria o Residencial Aclimação com três pontos, moradores, histórico de sessões e sessões anômalas. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+Para regenerar o cliente do Prisma depois de mudar o schema: `npm run prisma:generate`.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### 3. Desenvolvimento
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run start:dev          # nest start --watch em http://localhost:3000
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+O Swagger fica em `http://localhost:3000/docs`.
 
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
+### 4. Testes, lint e build
 
 ```bash
-$ npm install @nestjs/observe
+npm test                   # testes unitários (Vitest)
+npm run test:e2e           # testes e2e contra o Postgres do DATABASE_URL
+npm run test:cov           # unitários com cobertura
+npm run lint               # oxlint type-aware em src/, test/ e prisma/
+npx tsc --noEmit           # checagem de tipos
+npm run build              # nest build
 ```
 
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
+Os testes e2e usam o banco configurado no `.env`, então aplique as migrações antes de rodá-los.
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+## Testes, CI e deploy
 
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- **Testes unitários** (`*.spec.ts` junto do código): regras de domínio (estados da sessão, multas, limite, pagamento, rateio, capacidade, tarifas), providers de IA, rate limit, e-mail e configuração.
+- **Testes e2e** ([`test/`](test)): sobem a aplicação Nest contra Postgres e cobrem autenticação, OAuth, convites, organizações, pontos, sessões, rateio, pagamentos, integração com o `ml`, rate limit e Swagger. Stripe, `ml` e provedores OAuth são simulados nos testes.
+- **CI** ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), em todo PR e push na `main`, com um Postgres 17 de serviço: `npm ci`, `prisma generate`, `npm run lint`, `tsc --noEmit`, `prisma migrate deploy`, `npm test`, `npm run test:e2e` e `npm run build`.
+- **Deploy na Vercel** ([ADR 0015](https://github.com/ev-charge-ops/docs/blob/main/adr/0015-deploy-and-ci.md)): integração Git, função Node na região `gru1`. O build (`npm run vercel-build`) roda `prisma generate`, `prisma migrate deploy` e `nest build`, então as migrações sobem com o código. Cada merge na `main` vai para produção.
+- **Banco por PR:** cada PR ganha um preview na Vercel com um **branch próprio do Neon Postgres**, criado pela integração Neon + Vercel. Quando o PR fecha, o workflow [`cleanup-preview-database.yml`](.github/workflows/cleanup-preview-database.yml) apaga o branch.
+- Os segredos de produção ficam nas variáveis de ambiente da Vercel.
