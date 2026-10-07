@@ -27,6 +27,12 @@ export const envSchema = z
       .regex(/^\d+(ms|s|m|h|d)$/, 'must be a duration such as 15m or 1h')
       .default('15m'),
     REFRESH_TTL_DAYS: z.coerce.number().int().positive().default(7),
+    REFRESH_REUSE_GRACE_SECONDS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(600)
+      .default(60),
     CORS_ORIGINS: commaSeparatedList(),
     THROTTLE_TTL_SECONDS: z.coerce.number().int().positive().default(60),
     THROTTLE_LIMIT: z.coerce.number().int().positive().default(100),
