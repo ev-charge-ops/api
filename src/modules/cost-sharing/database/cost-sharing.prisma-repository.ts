@@ -8,6 +8,7 @@ import {
   type OrganizationSessionFilters,
   type OrganizationSessionRow,
   type OverviewSession,
+  type RecentAnomalyRow,
   type SiteDemand,
 } from './cost-sharing.repository.port.js';
 
@@ -155,12 +156,44 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
         energyKwh: true,
         totalCents: true,
         allocatedPowerKw: true,
+        isAnomaly: true,
       },
     });
     return sessions.map((session) => ({
       ...session,
       energyWh: toWh(session.energyKwh),
       allocatedPowerKw: session.allocatedPowerKw.toNumber(),
+    }));
+  }
+
+  async findRecentAnomalies(
+    organizationId: string,
+    before: Date,
+    limit: number,
+  ): Promise<RecentAnomalyRow[]> {
+    const sessions = await this.prisma.chargingSession.findMany({
+      where: { organizationId, isAnomaly: true, startedAt: { lt: before } },
+      include: {
+        chargePoint: { select: { id: true, code: true, name: true } },
+        user: { select: { id: true, name: true } },
+      },
+      orderBy: { startedAt: 'desc' },
+      take: limit,
+    });
+    return sessions.map((session) => ({
+      sessionId: session.id,
+      status: session.status,
+      regime: session.regime,
+      chargePoint: session.chargePoint,
+      driver: session.user,
+      unitLabel: session.unitLabel,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      energyWh: toWh(session.energyKwh),
+      idleMinutes: session.idleMinutes,
+      totalCents: session.totalCents,
+      anomalyScore: session.anomalyScore?.toNumber() ?? null,
+      anomalyModelVersion: session.anomalyModelVersion,
     }));
   }
 
