@@ -129,6 +129,7 @@ describe('OAuth login (e2e)', () => {
       email,
       role: 'DRIVER',
       emailVerified: true,
+      hasPassword: false,
     });
     expect(first.body.accessToken).toEqual(expect.any(String));
     expect(first.body.refreshToken).toEqual(expect.any(String));

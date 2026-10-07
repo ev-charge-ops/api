@@ -20,6 +20,7 @@ describe('UserResponseDto', () => {
       email: 'ana@example.com',
       role: 'DRIVER',
       emailVerified: false,
+      hasPassword: true,
     });
   });
 
@@ -37,5 +38,21 @@ describe('UserResponseDto', () => {
     });
 
     expect(dto.emailVerified).toBe(true);
+  });
+
+  it('reports an account without a password', () => {
+    const dto = UserResponseDto.fromEntity({
+      id: 'user-id',
+      name: 'Ana',
+      email: 'ana@example.com',
+      passwordHash: null,
+      role: 'DRIVER',
+      emailVerifiedAt: new Date(),
+      stripeCustomerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    expect(dto.hasPassword).toBe(false);
   });
 });

@@ -125,6 +125,7 @@ describe('AuthService', () => {
         email: 'ana@example.com',
         role: 'DRIVER',
         emailVerified: false,
+        hasPassword: true,
       });
     });
 
