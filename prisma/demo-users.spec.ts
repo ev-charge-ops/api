@@ -52,6 +52,8 @@ describe('upsertDemoUsers', () => {
     expect(managerCall.create.role).toBe('MANAGER');
     expect(driverCall.where).toEqual({ email: 'driver@evchargeops.dev' });
     expect(driverCall.create.role).toBe('DRIVER');
+    expect(managerCall.create.emailVerifiedAt).toBeInstanceOf(Date);
+    expect(driverCall.create.emailVerifiedAt).toBeInstanceOf(Date);
     expect(await verify(managerCall.update.passwordHash, 'manager-pass')).toBe(
       true,
     );

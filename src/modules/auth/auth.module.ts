@@ -4,9 +4,11 @@ import { APP_GUARD } from '@nestjs/core';
 import { JwtModule, type JwtSignOptions } from '@nestjs/jwt';
 import { RolesGuard } from '../../common/guards/roles.guard.js';
 import type { Env } from '../../config/env.schema.js';
+import { MailModule } from '../mail/mail.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { EmailVerificationService } from './email-verification.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OneTimeTokenService } from './one-time-token.service.js';
 import { PasswordService } from './password.service.js';
@@ -15,6 +17,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
 @Module({
   imports: [
     UsersModule,
+    MailModule,
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => ({
@@ -35,6 +38,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
     PasswordService,
     RefreshTokenService,
     OneTimeTokenService,
+    EmailVerificationService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],

@@ -65,7 +65,7 @@ export async function upsertDemoUsers(
     await prisma.user.upsert({
       where: { email: user.email },
       update: data,
-      create: { ...data, email: user.email },
+      create: { ...data, email: user.email, emailVerifiedAt: new Date() },
     });
   }
 }

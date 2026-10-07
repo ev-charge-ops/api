@@ -15,12 +15,16 @@ export class UserResponseDto {
   @ApiProperty({ enum: Role, enumName: 'Role' })
   role: Role;
 
+  @ApiProperty({ description: 'Whether the user confirmed their email' })
+  emailVerified: boolean;
+
   static fromEntity(user: User): UserResponseDto {
     return Object.assign(new UserResponseDto(), {
       id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
+      emailVerified: user.emailVerifiedAt !== null,
     });
   }
 }
