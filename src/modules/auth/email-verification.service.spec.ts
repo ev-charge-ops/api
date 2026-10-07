@@ -18,6 +18,7 @@ const user: User = {
   passwordHash: 'hash',
   role: 'DRIVER',
   emailVerifiedAt: null,
+  stripeCustomerId: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -110,6 +111,7 @@ describe('EmailVerificationService', () => {
     users.findById.mockResolvedValueOnce({
       ...user,
       emailVerifiedAt: new Date(),
+      stripeCustomerId: null,
     });
     await service.resend('user-1');
     expect(outbox.messages).toHaveLength(1);
