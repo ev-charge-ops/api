@@ -7,6 +7,8 @@ import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 import { Clock } from './../src/common/clock/clock.js';
 import { PrismaService } from './../src/database/prisma.service.js';
+import { FakePaymentGateway } from './../src/modules/payments/adapters/fake-payment.adapter.js';
+import { PaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
 
 const ML_PORT = vi.hoisted(() => {
   const port = 47_000 + Math.floor(Math.random() * 1000);
@@ -53,6 +55,18 @@ describe('ML integration (e2e)', () => {
   let organizationId: string;
   let visitor: Session;
   let pointId: string;
+  const payments = new FakePaymentGateway();
+
+  async function startPaid(): Promise<request.Response> {
+    const started = await post('/sessions', visitor, {
+      chargePointId: pointId,
+    }).expect(201);
+    payments.confirm(started.body.payment.paymentIntentId);
+    await post(`/sessions/${started.body.id}/payment/confirm`, visitor).expect(
+      200,
+    );
+    return started;
+  }
 
   function post(path: string, session: Session, body?: object): request.Test {
     return request(app.getHttpServer())
@@ -91,6 +105,8 @@ describe('ML integration (e2e)', () => {
     })
       .overrideProvider(Clock)
       .useValue({ now: () => now })
+      .overrideProvider(PaymentGateway)
+      .useValue(payments)
       .compile();
     app = moduleFixture.createNestApplication();
     await app.init();
@@ -148,9 +164,7 @@ describe('ML integration (e2e)', () => {
   });
 
   it('prices with the model factor and scores the session when it closes', async () => {
-    const started = await post('/sessions', visitor, {
-      chargePointId: pointId,
-    }).expect(201);
+    const started = await startPaid();
 
     expect(started.body).toMatchObject({
       lockedRateCents: 227,
@@ -208,9 +222,7 @@ describe('ML integration (e2e)', () => {
       demandModelVersion: null,
     });
 
-    const started = await post('/sessions', visitor, {
-      chargePointId: pointId,
-    }).expect(201);
+    const started = await startPaid();
     expect(started.body).toMatchObject({
       lockedRateCents: 151,
       demandFactorSource: 'RULE',

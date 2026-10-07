@@ -3,6 +3,7 @@ import type {
   Charger,
   ChargingSession as ChargingSessionRecord,
   MeterReading,
+  Payment,
   Prisma,
 } from '../../generated/prisma/client.js';
 import type { ChargingLimit } from './domain/charging-limit.js';
@@ -11,14 +12,17 @@ import {
   type ChargingSessionProps,
   type MeterSample,
 } from './domain/charging-session.entity.js';
+import type { SessionPayment } from './domain/session-payment.js';
 import { MeterReadingDto } from './dto/meter-reading.dto.js';
 import { SessionDetailResponseDto } from './dto/session-detail.response.dto.js';
+import { SessionPaymentDto } from './dto/session-payment.dto.js';
 import { SessionResponseDto } from './dto/session.response.dto.js';
 
 export type ChargingSessionWithPoint = ChargingSessionRecord & {
   chargePoint: Pick<ChargePoint, 'code' | 'name'> & {
     chargers: Pick<Charger, 'serialNumber'>[];
   };
+  payment: Payment | null;
 };
 
 export const SESSION_INCLUDE = {
@@ -33,6 +37,7 @@ export const SESSION_INCLUDE = {
       },
     },
   },
+  payment: true,
 } satisfies Prisma.ChargingSessionInclude;
 
 const WH_PER_KWH = 1000;
@@ -103,13 +108,45 @@ export function toDomain(record: ChargingSessionWithPoint): ChargingSession {
     anomalyScore: record.anomalyScore?.toNumber() ?? null,
     isAnomaly: record.isAnomaly,
     anomalyModelVersion: record.anomalyModelVersion,
+    payment: record.payment ? paymentToDomain(record.payment) : null,
     version: record.updatedAt,
   });
+}
+
+function paymentToDomain(record: Payment): SessionPayment {
+  return {
+    intentId: record.stripePaymentIntentId,
+    customerId: record.stripeCustomerId,
+    status: record.status,
+    currency: record.currency,
+    authorizedCents: record.authorizedCents,
+    capturedCents: record.capturedCents,
+    failureCode: record.failureCode,
+    authorizedAt: record.authorizedAt,
+    capturedAt: record.capturedAt,
+    canceledAt: record.canceledAt,
+  };
+}
+
+export function toPaymentData(payment: SessionPayment) {
+  return {
+    stripePaymentIntentId: payment.intentId,
+    stripeCustomerId: payment.customerId,
+    status: payment.status,
+    currency: payment.currency,
+    authorizedCents: payment.authorizedCents,
+    capturedCents: payment.capturedCents,
+    failureCode: payment.failureCode,
+    authorizedAt: payment.authorizedAt,
+    capturedAt: payment.capturedAt,
+    canceledAt: payment.canceledAt,
+  };
 }
 
 export function toStateData(props: ChargingSessionProps) {
   return {
     status: props.status,
+    startedAt: props.startedAt,
     targetEnergyKwh:
       props.targetEnergyWh === null ? null : kwhDecimal(props.targetEnergyWh),
     batteryCapacityKwh:
@@ -158,7 +195,6 @@ export function toCreateData(
     idleFeeCentsPerMinute: props.idleFeeCentsPerMinute,
     idleFeeCapCents: props.idleFeeCapCents,
     gracePeriodMinutes: props.gracePeriodMinutes,
-    startedAt: props.startedAt,
     ...toStateData(props),
   };
 }
@@ -245,7 +281,22 @@ function responseFields(session: ChargingSession): SessionResponseDto {
     anomalyScore: props.anomalyScore,
     isAnomaly: props.isAnomaly,
     simulationSpeed: props.timeScale,
+    payment: props.payment ? toPaymentDto(props.payment) : null,
   };
+}
+
+function toPaymentDto(payment: SessionPayment): SessionPaymentDto {
+  return Object.assign(new SessionPaymentDto(), {
+    paymentIntentId: payment.intentId,
+    status: payment.status,
+    currency: payment.currency,
+    authorizedCents: payment.authorizedCents,
+    capturedCents: payment.capturedCents,
+    failureCode: payment.failureCode,
+    authorizedAt: payment.authorizedAt,
+    capturedAt: payment.capturedAt,
+    canceledAt: payment.canceledAt,
+  });
 }
 
 export function toReadingDto(sample: MeterSample): MeterReadingDto {

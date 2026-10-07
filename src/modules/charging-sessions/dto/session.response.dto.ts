@@ -5,6 +5,7 @@ import {
   ChargingSessionStatus,
   DemandFactorSource,
 } from '../../../generated/prisma/enums.js';
+import { SessionPaymentDto } from './session-payment.dto.js';
 
 export class SessionChargePointDto {
   @ApiProperty({ format: 'uuid' })
@@ -36,7 +37,7 @@ export class SessionResponseDto {
     enum: ChargingSessionStatus,
     enumName: 'ChargingSessionStatus',
     description:
-      'ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap)',
+      'AWAITING_PAYMENT until the card hold is authorized (commercial points only), PENDING while the charger starts, ACTIVE while charging, GRACE after the battery is full (no fee), IDLE once the grace period ends (idle fee per minute up to the cap), CLOSED when ended by the driver, INTERRUPTED when it never charged (payment canceled or expired, charger failure)',
   })
   status: ChargingSessionStatus;
 
@@ -136,4 +137,12 @@ export class SessionResponseDto {
       'Simulated seconds per real second for this session (1 with real chargers)',
   })
   simulationSpeed: number;
+
+  @ApiProperty({
+    type: SessionPaymentDto,
+    nullable: true,
+    description:
+      'Card payment of commercial sessions (Stripe), null for private sessions billed through the monthly cost sharing',
+  })
+  payment: SessionPaymentDto | null;
 }

@@ -9,6 +9,8 @@ import { allocatePowerKw } from '../../../charge-points/site-capacity.js';
 import { ChargerGateway } from '../../../charger-gateway/charger-gateway.port.js';
 import { toResponse } from '../../charging-session.mapper.js';
 import {
+  paymentProviderError,
+  paymentsUnavailable,
   SessionErrorCode,
   sessionConflict,
   sessionError,
@@ -19,11 +21,14 @@ import {
 } from '../../database/charging-session.repository.port.js';
 import type { ChargingLimit } from '../../domain/charging-limit.js';
 import { ChargingSession } from '../../domain/charging-session.entity.js';
-import type { SessionResponseDto } from '../../dto/session.response.dto.js';
+import type { PaymentSheetDto } from '../../dto/payment-sheet.dto.js';
+import { SessionPayments } from '../../session-payments.js';
+import { SessionStarter } from '../../session-starter.js';
 import type {
   ChargingLimitRequestDto,
   StartSessionRequestDto,
 } from './start-session.request.dto.js';
+import { StartSessionResponseDto } from './start-session.response.dto.js';
 
 const WH_PER_KWH = 1000;
 
@@ -35,13 +40,15 @@ export class StartSessionService {
     private readonly chargePoints: ChargePointsService,
     private readonly sessions: ChargingSessionRepository,
     private readonly gateway: ChargerGateway,
+    private readonly starter: SessionStarter,
+    private readonly payments: SessionPayments,
     private readonly clock: Clock,
   ) {}
 
   async execute(
     userId: string,
     dto: StartSessionRequestDto,
-  ): Promise<SessionResponseDto> {
+  ): Promise<StartSessionResponseDto> {
     const now = this.clock.now();
     const limit = toLimit(dto.limit);
     const quote = await this.chargePoints.quote(userId, dto.chargePointId, now);
@@ -57,6 +64,9 @@ export class StartSessionService {
         SessionErrorCode.TARIFF_NOT_CONFIGURED,
         'Charge point has no tariff',
       );
+    }
+    if (quote.type === 'COMMERCIAL' && !this.payments.enabled) {
+      throw paymentsUnavailable();
     }
     const allocatedPowerKw = await this.allocatePower(quote);
 
@@ -97,27 +107,33 @@ export class StartSessionService {
       );
     }
 
-    try {
-      const started = await this.gateway.start({
-        sessionId: session.id,
-        chargerSerialNumber,
-        allocatedPowerKw,
-      });
-      session.activate(started.transactionId, started.vehicle);
-    } catch (error) {
-      this.logger.warn(
-        `Charger ${chargerSerialNumber} did not start: ${String(error)}`,
-      );
-      session.interrupt(this.clock.now());
-      await this.sessions.save(session, []);
+    if (session.requiresPayment) {
+      return toStartResponse(session, await this.openPayment(session));
+    }
+    if (!(await this.starter.start(session))) {
       throw sessionError(
         HttpStatus.SERVICE_UNAVAILABLE,
         SessionErrorCode.CHARGER_UNAVAILABLE,
         'Charger did not start the session',
       );
     }
-    await this.sessions.save(session, []);
-    return toResponse(session);
+    return toStartResponse(session, null);
+  }
+
+  private async openPayment(
+    session: ChargingSession,
+  ): Promise<PaymentSheetDto> {
+    try {
+      return await this.payments.open(session);
+    } catch (error) {
+      this.logger.warn(
+        `Payment for session ${session.id} could not be opened: ${String(error)}`,
+      );
+      session.interrupt(this.clock.now());
+      await this.sessions.save(session, []);
+      await this.payments.settle(session);
+      throw paymentProviderError(error);
+    }
   }
 
   private async allocatePower(quote: ChargePointQuote): Promise<number> {
@@ -158,4 +174,13 @@ function toLimit(dto: ChargingLimitRequestDto | undefined): ChargingLimit {
       }
       return { type: 'AMOUNT', amountCents: dto.value ?? 0 };
   }
+}
+
+function toStartResponse(
+  session: ChargingSession,
+  paymentSheet: PaymentSheetDto | null,
+): StartSessionResponseDto {
+  return Object.assign(new StartSessionResponseDto(), toResponse(session), {
+    paymentSheet,
+  });
 }

@@ -7,7 +7,9 @@ import { setupSwagger } from './common/swagger/setup-swagger.js';
 import type { Env } from './config/env.schema.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    rawBody: true,
+  });
   const config = app.get<ConfigService<Env, true>>(ConfigService);
 
   const trustProxy =

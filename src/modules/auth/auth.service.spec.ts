@@ -35,6 +35,7 @@ function createInMemoryPrisma() {
           id: randomUUID(),
           role: 'DRIVER',
           emailVerifiedAt: null,
+          stripeCustomerId: null,
           createdAt: new Date(),
           updatedAt: new Date(),
           ...data,
@@ -201,6 +202,7 @@ describe('AuthService', () => {
         passwordHash: null,
         role: 'DRIVER',
         emailVerifiedAt: new Date(),
+        stripeCustomerId: null,
         createdAt: new Date(),
         updatedAt: new Date(),
       });

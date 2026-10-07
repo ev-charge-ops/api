@@ -32,7 +32,7 @@ export class StopSessionController {
   @ApiOperation({
     operationId: 'stopSession',
     summary:
-      'End the session: stops charging early with the partial energy, or unplugs during grace/idle freezing the idle fee',
+      'End the session: stops charging early with the partial energy, or unplugs during grace/idle freezing the idle fee. Card payments are captured with the final amount, or released when nothing is due or the session is canceled before charging',
   })
   @ApiOkResponse({ type: SessionResponseDto })
   @ApiNotFoundResponse({ description: 'SESSION_NOT_FOUND' })
