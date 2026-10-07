@@ -1,3 +1,5 @@
+import type { Clock } from '../../common/clock/clock.js';
+import type { ChargePointQueue } from '../charge-points/queue/charge-point-queue.js';
 import type { Notifier } from '../notifications/notifier.js';
 import { ChargingSession } from './domain/charging-session.entity.js';
 import {
@@ -164,9 +166,21 @@ describe('sessionNotifications', () => {
 });
 
 describe('SessionEvents', () => {
+  const notify = vi.fn();
+  const advance = vi.fn();
+  let events: SessionEvents;
+
+  beforeEach(() => {
+    notify.mockReset().mockResolvedValue(true);
+    advance.mockReset().mockResolvedValue(undefined);
+    events = new SessionEvents(
+      { notify } as unknown as Notifier,
+      { advance } as unknown as ChargePointQueue,
+      { now: () => at(500) } as Clock,
+    );
+  });
+
   it('notifies only when the status or the payment changed', async () => {
-    const notify = vi.fn().mockResolvedValue(true);
-    const events = new SessionEvents({ notify } as unknown as Notifier);
     const session = activeSession();
 
     await events.changed(snapshotOf(session), session);
@@ -183,5 +197,23 @@ describe('SessionEvents', () => {
     expect(notify.mock.calls[0][0]).toMatchObject({
       type: 'CHARGING_COMPLETE',
     });
+    expect(advance).not.toHaveBeenCalled();
+  });
+
+  it('frees the point for the queue when the session ends', async () => {
+    const closed = activeSession();
+    const before = snapshotOf(closed);
+    closed.stop(at(30));
+    await events.changed(before, closed);
+    expect(advance).toHaveBeenCalledWith('point-1', at(500));
+
+    const interrupted = newSession();
+    const pending = snapshotOf(interrupted);
+    interrupted.interrupt(at(1));
+    await events.changed(pending, interrupted);
+    expect(advance).toHaveBeenCalledTimes(2);
+
+    await events.changed(snapshotOf(closed), closed);
+    expect(advance).toHaveBeenCalledTimes(2);
   });
 });

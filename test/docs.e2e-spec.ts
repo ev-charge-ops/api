@@ -39,11 +39,13 @@ describe('OpenAPI docs (e2e)', () => {
       ),
     );
     expect(operations.sort()).toEqual([
+      'DELETE /charge-points/{chargePointId}/queue leaveChargePointQueue',
       'DELETE /me/push-tokens/{token} removePushToken',
       'DELETE /organizations/{organizationId}/invites/{inviteId} revokeInvite',
       'GET /auth/me getMe',
       'GET /charge-points listChargePoints',
       'GET /charge-points/{chargePointId} getChargePoint',
+      'GET /charge-points/{chargePointId}/queue/me getMyQueueEntry',
       'GET /invites/{token} getInvitePreview',
       'GET /me/consents getMyConsents',
       'GET /me/data-export exportMyData',
@@ -73,6 +75,7 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /auth/password/reset resetPassword',
       'POST /auth/refresh refresh',
       'POST /auth/register register',
+      'POST /charge-points/{chargePointId}/queue joinChargePointQueue',
       'POST /invites/{token}/accept acceptInvite',
       'POST /invites/{token}/accept-authenticated acceptInviteAsCurrentUser',
       'POST /me/deletion-request requestAccountDeletion',

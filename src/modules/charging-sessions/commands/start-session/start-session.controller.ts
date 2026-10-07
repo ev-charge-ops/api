@@ -35,7 +35,7 @@ export class StartSessionController {
   @ApiNotFoundResponse({ description: 'Charge point not found' })
   @ApiConflictResponse({
     description:
-      'CHARGE_POINT_BUSY, ACTIVE_SESSION_EXISTS, CHARGE_POINT_OFFLINE, TARIFF_NOT_CONFIGURED or BUILDING_CAPACITY_EXCEEDED',
+      'CHARGE_POINT_BUSY, CHARGE_POINT_RESERVED (free but reserved for the head of the queue), ACTIVE_SESSION_EXISTS, CHARGE_POINT_OFFLINE, TARIFF_NOT_CONFIGURED or BUILDING_CAPACITY_EXCEEDED',
   })
   @ApiServiceUnavailableResponse({
     description:

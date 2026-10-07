@@ -22,6 +22,8 @@ import {
 import { ChargePointPricingDto } from './dto/charge-point-pricing.dto.js';
 import { ChargePointResponseDto } from './dto/charge-point.response.dto.js';
 import { ChargerResponseDto } from './dto/charger.response.dto.js';
+import { ChargePointQueue } from './queue/charge-point-queue.js';
+import { type QueueEntryRecord, summarize } from './queue/queue-rules.js';
 import type { SiteCapacity } from './site-capacity.js';
 import {
   appliesDemandFactor,
@@ -43,6 +45,7 @@ export interface ChargePointQuote {
   demand: DemandFactor;
   pricePerKwhCents: number | null;
   capacity: SiteCapacity | null;
+  reservedForUserId: string | null;
 }
 
 export interface OrganizationPointPricing {
@@ -65,6 +68,7 @@ interface PricedPoint<T extends PriceablePoint = ChargePointRecord> {
   status: ChargePointStatus;
   tariff: Tariff | null;
   demand: DemandFactor;
+  queue: QueueEntryRecord[];
 }
 
 @Injectable()
@@ -72,6 +76,7 @@ export class ChargePointsService {
   constructor(
     private readonly repository: ChargePointsRepository,
     private readonly demandFactors: DemandFactorProvider,
+    private readonly queue: ChargePointQueue,
     private readonly clock: Clock,
   ) {}
 
@@ -83,7 +88,7 @@ export class ChargePointsService {
       organizationId,
     });
     const priced = await this.price(points, this.clock.now());
-    return priced.map(toResponse);
+    return priced.map((item) => this.toResponse(item, userId));
   }
 
   async listOrganizationPricing(
@@ -103,7 +108,10 @@ export class ChargePointsService {
   }
 
   async get(userId: string, id: string): Promise<ChargePointResponseDto> {
-    return toResponse(await this.findPriced(userId, id, this.clock.now()));
+    return this.toResponse(
+      await this.findPriced(userId, id, this.clock.now()),
+      userId,
+    );
   }
 
   async quote(
@@ -111,7 +119,7 @@ export class ChargePointsService {
     chargePointId: string,
     at: Date,
   ): Promise<ChargePointQuote> {
-    const { point, status, tariff, demand } = await this.findPriced(
+    const { point, status, tariff, demand, queue } = await this.findPriced(
       userId,
       chargePointId,
       at,
@@ -134,6 +142,7 @@ export class ChargePointsService {
         ? pricePerKwhCents(point.type, tariff, demand.factor)
         : null,
       capacity: siteCapacity(point.organization),
+      reservedForUserId: summarize(queue, userId).reservedForUserId,
     };
   }
 
@@ -171,20 +180,30 @@ export class ChargePointsService {
         chargePointStatus(point.isOnline, occupying.get(point.id) ?? null),
       ]),
     );
+    const queues = await this.queue.refresh(statuses, at);
 
     const demandCache = new Map<string, Promise<DemandFactor>>();
     const demandFor = (organizationId: string, type: ChargePointType) => {
       const key = `${organizationId}:${type}`;
       let demand = demandCache.get(key);
       if (!demand) {
-        const siteStatuses = sitePoints
-          .filter((point) => point.organizationId === organizationId)
-          .map((point) => statuses.get(point.id) ?? 'AVAILABLE');
+        const site = sitePoints.filter(
+          (point) => point.organizationId === organizationId,
+        );
+        const siteStatuses = site.map(
+          (point) => statuses.get(point.id) ?? 'AVAILABLE',
+        );
+        const queueLength = site
+          .filter((point) => point.type === type)
+          .reduce(
+            (total, point) => total + (queues.get(point.id)?.length ?? 0),
+            0,
+          );
         demand = this.demandFactors.getFactor({
           at,
           chargePointType: type,
           occupancyRatio: occupancyRatio(siteStatuses),
-          queueLength: 0,
+          queueLength,
         });
         demandCache.set(key, demand);
       }
@@ -205,8 +224,23 @@ export class ChargePointsService {
           at,
         ),
         demand: await demandFor(point.organizationId, point.type),
+        queue: queues.get(point.id) ?? [],
       })),
     );
+  }
+
+  private toResponse(
+    { point, status, tariff, demand, queue }: PricedPoint,
+    userId: string,
+  ): ChargePointResponseDto {
+    const summary = summarize(queue, userId);
+    return Object.assign(toResponse({ point, status, tariff, demand }), {
+      queueLength: summary.queueLength,
+      reservedUntil: summary.reservedUntil,
+      myQueueEntry: summary.myEntry
+        ? this.queue.toResponse(summary.myEntry, queue)
+        : null,
+    });
   }
 }
 
@@ -215,7 +249,7 @@ function toResponse({
   status,
   tariff,
   demand,
-}: PricedPoint): ChargePointResponseDto {
+}: Omit<PricedPoint, 'queue'>): ChargePointResponseDto {
   const [charger] = point.chargers;
   return Object.assign(new ChargePointResponseDto(), {
     id: point.id,
