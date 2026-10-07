@@ -8,6 +8,7 @@ import { MailModule } from '../mail/mail.module.js';
 import { UsersModule } from '../users/users.module.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { EmailLoginService } from './email-login.service.js';
 import { EmailVerificationService } from './email-verification.service.js';
 import { JwtAuthGuard } from './guards/jwt-auth.guard.js';
 import { OneTimeTokenService } from './one-time-token.service.js';
@@ -41,6 +42,7 @@ import { RefreshTokenService } from './refresh-token.service.js';
     OneTimeTokenService,
     EmailVerificationService,
     PasswordResetService,
+    EmailLoginService,
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
