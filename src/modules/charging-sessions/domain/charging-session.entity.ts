@@ -17,6 +17,7 @@ import {
 import {
   chargeableEnergyWh,
   PAYMENT_CURRENCY,
+  type PaymentMode,
   type PaymentSettlement,
   PaymentStatus,
   type SessionPayment,
@@ -121,6 +122,8 @@ export type NewChargingSession = Pick<
 export interface NewPayment {
   intentId: string;
   customerId: string;
+  mode: PaymentMode;
+  autoRefund: boolean;
   amountCents: number;
 }
 
@@ -270,6 +273,8 @@ export class ChargingSession {
     this.props.payment = {
       intentId: payment.intentId,
       customerId: payment.customerId,
+      mode: payment.mode,
+      autoRefund: payment.autoRefund,
       status: PaymentStatus.PENDING_AUTHORIZATION,
       currency: PAYMENT_CURRENCY,
       authorizedCents: payment.amountCents,
@@ -278,6 +283,8 @@ export class ChargingSession {
       authorizedAt: null,
       capturedAt: null,
       canceledAt: null,
+      refundedCents: null,
+      refundedAt: null,
     };
   }
 
@@ -315,7 +322,8 @@ export class ChargingSession {
     const payment = this.expectPayment();
     if (
       payment.status === PaymentStatus.CAPTURED ||
-      payment.status === PaymentStatus.CANCELED
+      payment.status === PaymentStatus.CANCELED ||
+      payment.status === PaymentStatus.REFUNDED
     ) {
       return;
     }
@@ -328,12 +336,25 @@ export class ChargingSession {
 
   recordPaymentCaptured(amountCents: number, at: Date): void {
     const payment = this.expectPayment();
-    if (payment.status === PaymentStatus.CAPTURED) {
+    if (
+      payment.status === PaymentStatus.CAPTURED ||
+      payment.status === PaymentStatus.REFUNDED
+    ) {
       return;
     }
     payment.status = PaymentStatus.CAPTURED;
     payment.capturedCents = amountCents;
     payment.capturedAt = at;
+  }
+
+  recordPaymentRefunded(amountCents: number, at: Date): void {
+    const payment = this.expectPayment();
+    if (payment.status !== PaymentStatus.CAPTURED) {
+      return;
+    }
+    payment.status = PaymentStatus.REFUNDED;
+    payment.refundedCents = amountCents;
+    payment.refundedAt = at;
   }
 
   isPaymentOverdue(now: Date, timeoutMinutes: number): boolean {

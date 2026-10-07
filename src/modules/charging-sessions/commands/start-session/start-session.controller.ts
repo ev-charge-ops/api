@@ -39,7 +39,7 @@ export class StartSessionController {
   })
   @ApiServiceUnavailableResponse({
     description:
-      'CHARGER_UNAVAILABLE: the charger did not start; PAYMENTS_UNAVAILABLE: card payments are not configured (commercial points)',
+      'CHARGER_UNAVAILABLE: the charger did not start; PAYMENTS_UNAVAILABLE: card payments are not configured for the paymentMode of the driver (commercial points)',
   })
   @ApiBadGatewayResponse({
     description: 'PAYMENT_PROVIDER_ERROR: Stripe did not create the hold',

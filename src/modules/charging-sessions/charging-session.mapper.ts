@@ -127,6 +127,8 @@ function paymentToDomain(record: Payment): SessionPayment {
   return {
     intentId: record.stripePaymentIntentId,
     customerId: record.stripeCustomerId,
+    mode: record.mode,
+    autoRefund: record.autoRefund,
     status: record.status,
     currency: record.currency,
     authorizedCents: record.authorizedCents,
@@ -135,6 +137,8 @@ function paymentToDomain(record: Payment): SessionPayment {
     authorizedAt: record.authorizedAt,
     capturedAt: record.capturedAt,
     canceledAt: record.canceledAt,
+    refundedCents: record.refundedCents,
+    refundedAt: record.refundedAt,
   };
 }
 
@@ -142,6 +146,8 @@ export function toPaymentData(payment: SessionPayment) {
   return {
     stripePaymentIntentId: payment.intentId,
     stripeCustomerId: payment.customerId,
+    mode: payment.mode,
+    autoRefund: payment.autoRefund,
     status: payment.status,
     currency: payment.currency,
     authorizedCents: payment.authorizedCents,
@@ -150,6 +156,8 @@ export function toPaymentData(payment: SessionPayment) {
     authorizedAt: payment.authorizedAt,
     capturedAt: payment.capturedAt,
     canceledAt: payment.canceledAt,
+    refundedCents: payment.refundedCents,
+    refundedAt: payment.refundedAt,
   };
 }
 
@@ -346,6 +354,7 @@ function responseFields(
 function toPaymentDto(payment: SessionPayment): SessionPaymentDto {
   return Object.assign(new SessionPaymentDto(), {
     paymentIntentId: payment.intentId,
+    mode: payment.mode,
     status: payment.status,
     currency: payment.currency,
     authorizedCents: payment.authorizedCents,
@@ -354,6 +363,8 @@ function toPaymentDto(payment: SessionPayment): SessionPaymentDto {
     authorizedAt: payment.authorizedAt,
     capturedAt: payment.capturedAt,
     canceledAt: payment.canceledAt,
+    refundedCents: payment.refundedCents,
+    refundedAt: payment.refundedAt,
   });
 }
 

@@ -25,6 +25,7 @@ function buildUser(overrides: Partial<User> = {}): User {
     role: 'DRIVER',
     emailVerifiedAt: new Date(),
     stripeCustomerId: null,
+    stripeLiveCustomerId: null,
     paymentMode: 'TEST',
     locationMode: 'DEMO',
     autoRefund: false,

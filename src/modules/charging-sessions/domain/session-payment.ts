@@ -10,9 +10,17 @@ export const PaymentStatus = {
   CAPTURED: 'CAPTURED',
   CANCELED: 'CANCELED',
   FAILED: 'FAILED',
+  REFUNDED: 'REFUNDED',
 } as const;
 
 export type PaymentStatus = (typeof PaymentStatus)[keyof typeof PaymentStatus];
+
+export const PaymentMode = {
+  TEST: 'TEST',
+  LIVE: 'LIVE',
+} as const;
+
+export type PaymentMode = (typeof PaymentMode)[keyof typeof PaymentMode];
 
 export const PAYMENT_CURRENCY = 'BRL';
 export const MINIMUM_CHARGE_CENTS = 50;
@@ -22,6 +30,8 @@ const WH_PER_KWH = 1000;
 export interface SessionPayment {
   intentId: string;
   customerId: string;
+  mode: PaymentMode;
+  autoRefund: boolean;
   status: PaymentStatus;
   currency: string;
   authorizedCents: number;
@@ -30,10 +40,14 @@ export interface SessionPayment {
   authorizedAt: Date | null;
   capturedAt: Date | null;
   canceledAt: Date | null;
+  refundedCents: number | null;
+  refundedAt: Date | null;
 }
 
 export type PaymentSettlement =
-  { action: 'CAPTURE'; amountCents: number } | { action: 'CANCEL' };
+  | { action: 'CAPTURE'; amountCents: number }
+  | { action: 'CANCEL' }
+  | { action: 'REFUND'; amountCents: number };
 
 export interface HoldTerms {
   limit: ChargingLimit;
@@ -95,6 +109,10 @@ export function settlementFor(
         ? { action: 'CAPTURE', amountCents }
         : { action: 'CANCEL' };
     }
+    case PaymentStatus.CAPTURED:
+      return payment.autoRefund && (payment.capturedCents ?? 0) > 0
+        ? { action: 'REFUND', amountCents: payment.capturedCents ?? 0 }
+        : null;
     default:
       return null;
   }
