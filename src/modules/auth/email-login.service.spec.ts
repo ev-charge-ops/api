@@ -20,6 +20,9 @@ const user: User = {
   role: 'DRIVER',
   emailVerifiedAt: null,
   stripeCustomerId: null,
+  paymentMode: 'TEST',
+  locationMode: 'DEMO',
+  autoRefund: false,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
