@@ -2,6 +2,7 @@ import { emailLoginCode } from './email-login-code.js';
 import { escapeHtml } from './escape-html.js';
 import { formatDuration } from './format-duration.js';
 import { BRAND_DARK, BRAND_RED, renderLayout } from './layout.js';
+import { organizationInvite } from './organization-invite.js';
 import { passwordReset } from './password-reset.js';
 import { verifyEmail } from './verify-email.js';
 
@@ -134,5 +135,46 @@ describe('templates', () => {
     expect(login.email.html).toContain('>042817<');
     expect(login.email.html).toContain('aria-label="0 4 2 8 1 7"');
     expect(login.email.text).toContain('042817');
+  });
+});
+
+describe('organizationInvite', () => {
+  const url = 'https://app.evchargeops.com.br/invite?token=abc_DEF-123';
+
+  it('renders the invitation with manager, organization and unit', () => {
+    const email = organizationInvite({
+      managerName: 'Gestor Demo',
+      organizationName: 'Residencial Aclimação',
+      unitLabel: 'B · 42',
+      url,
+      expiresInDays: 7,
+    });
+
+    expect(email.subject).toBe(
+      'Gestor Demo convidou você para o Residencial Aclimação',
+    );
+    expect(email.text).toContain(
+      'Gestor Demo convidou você para o Residencial Aclimação',
+    );
+    expect(email.text).toContain('Sua unidade: B · 42.');
+    expect(email.text).toContain('app EV ChargeOps');
+    expect(email.text).toContain(`Aceitar convite: ${url}`);
+    expect(email.text).toContain('7 dias');
+    expect(email.html).toContain(`href="${url}"`);
+  });
+
+  it('omits the unit when absent and escapes names in html', () => {
+    const email = organizationInvite({
+      managerName: maliciousName,
+      organizationName: 'Condomínio <b>X</b>',
+      url,
+      expiresInDays: 1,
+    });
+
+    expect(email.text).not.toContain('Sua unidade');
+    expect(email.text).toContain('1 dia.');
+    expect(email.html).not.toContain('<script>');
+    expect(email.html).not.toContain('<b>X</b>');
+    expect(email.html).toContain('Condomínio &lt;b&gt;X&lt;/b&gt;');
   });
 });

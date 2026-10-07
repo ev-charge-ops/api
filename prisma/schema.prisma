@@ -49,6 +49,8 @@ model User {
   oneTimeTokens   OneTimeToken[]
   identities      UserIdentity[]
   memberships     Membership[]
+  invitesSent     Invite[]       @relation("InvitesSent")
+  invitesAccepted Invite[]       @relation("InvitesAccepted")
 }
 
 model UserIdentity {
@@ -98,6 +100,7 @@ model Organization {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   memberships Membership[]
+  invites     Invite[]
 }
 
 model Membership {
@@ -112,4 +115,24 @@ model Membership {
 
   @@unique([userId, organizationId])
   @@index([organizationId])
+}
+
+model Invite {
+  id             String         @id @default(uuid())
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  unitLabel      String?
+  role           MembershipRole @default(DRIVER)
+  tokenHash      String         @unique
+  expiresAt      DateTime
+  invitedById    String
+  invitedBy      User           @relation("InvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedAt     DateTime?
+  acceptedById   String?
+  acceptedBy     User?          @relation("InvitesAccepted", fields: [acceptedById], references: [id], onDelete: SetNull)
+  revokedAt      DateTime?
+  createdAt      DateTime       @default(now())
+
+  @@index([organizationId, email])
 }
