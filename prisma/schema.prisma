@@ -69,6 +69,18 @@ enum PaymentStatus {
   FAILED
 }
 
+enum ConsentPurpose {
+  ESSENTIAL_SERVICE
+  BILLING_SHARING
+  USAGE_ANALYTICS
+  MARKETING_COMMUNICATIONS
+}
+
+enum DeletionRequestStatus {
+  PENDING
+  COMPLETED
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -92,6 +104,8 @@ model User {
   invitesSent      Invite[]          @relation("InvitesSent")
   invitesAccepted  Invite[]          @relation("InvitesAccepted")
   sessions         ChargingSession[]
+  consentRecords   ConsentRecord[]
+  deletionRequests DeletionRequest[]
 }
 
 model UserIdentity {
@@ -320,4 +334,28 @@ model ProcessedPaymentEvent {
   id          String   @id
   type        String
   processedAt DateTime @default(now())
+}
+
+model ConsentRecord {
+  id           String         @id @default(uuid())
+  userId       String
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose      ConsentPurpose
+  granted      Boolean
+  termsVersion String
+  createdAt    DateTime       @default(now())
+
+  @@index([userId, purpose, createdAt])
+}
+
+model DeletionRequest {
+  id          String                @id @default(uuid())
+  userId      String
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      DeletionRequestStatus @default(PENDING)
+  reason      String?
+  createdAt   DateTime              @default(now())
+  processedAt DateTime?
+
+  @@index([userId, status])
 }
