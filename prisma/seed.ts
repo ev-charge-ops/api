@@ -12,6 +12,11 @@ import {
 } from './demo-anomalies.js';
 import { buildDemoSite, upsertDemoSite } from './demo-charge-points.js';
 import {
+  buildDemoCommercialNetwork,
+  buildDemoNetworkHistory,
+  upsertDemoCommercialNetwork,
+} from './demo-commercial-network.js';
+import {
   buildDemoHistory,
   buildDemoResidents,
   insertDemoHistory,
@@ -108,6 +113,21 @@ async function main(): Promise<void> {
     );
     console.log(
       `Seeded ${insertedAnomalies} of ${anomalies.length} anomalous sessions scored by ${mlUrl} with the rule fallback`,
+    );
+
+    const network = buildDemoCommercialNetwork();
+    await upsertDemoCommercialNetwork(prisma, network);
+    const networkHistory = buildDemoNetworkHistory({
+      now,
+      operators: network,
+      drivers,
+    });
+    const insertedNetworkHistory = await insertDemoHistory(
+      prisma,
+      networkHistory,
+    );
+    console.log(
+      `Seeded ${network.length} commercial operators with ${network.flatMap((operator) => operator.chargePoints).length} charge points and ${insertedNetworkHistory} of ${networkHistory.length} historical sessions`,
     );
   } finally {
     await prisma.$disconnect();

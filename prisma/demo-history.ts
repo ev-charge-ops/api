@@ -32,9 +32,6 @@ const RESIDENT_NAMES = [
 
 const MONTHS_OF_HISTORY = 3;
 const BATTERY_CAPACITY_KWH = 50;
-const GRACE_MINUTES = 10;
-const IDLE_FEE_CENTS_PER_MINUTE = 25;
-const IDLE_FEE_CAP_CENTS = 3000;
 const MINUTE_IN_MS = 60_000;
 
 export interface DemoResident {
@@ -49,7 +46,20 @@ export interface HistoryPoint {
   type: 'PRIVATE' | 'COMMERCIAL';
   maxPowerKw: number;
   rateCents: number;
+  idleTerms?: IdleTerms;
 }
+
+export interface IdleTerms {
+  idleFeeCentsPerMinute: number;
+  idleFeeCapCents: number;
+  gracePeriodMinutes: number;
+}
+
+const DEFAULT_IDLE_TERMS: IdleTerms = {
+  idleFeeCentsPerMinute: 25,
+  idleFeeCapCents: 3000,
+  gracePeriodMinutes: 10,
+};
 
 export interface HistoryDriver {
   userId: string;
@@ -61,6 +71,7 @@ export interface HistoryInput {
   now: Date;
   points: HistoryPoint[];
   drivers: HistoryDriver[];
+  visitorProbability?: number;
 }
 
 export function createRandom(seed: number): () => number {
@@ -123,6 +134,12 @@ const VISITOR_SLOT: Slot = {
   probability: 0.3,
 };
 
+function visitorSlot(input: HistoryInput): Slot {
+  return input.visitorProbability === undefined
+    ? VISITOR_SLOT
+    : { ...VISITOR_SLOT, probability: input.visitorProbability };
+}
+
 function addMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() + minutes * MINUTE_IN_MS);
 }
@@ -148,7 +165,8 @@ export function buildDemoHistory(
     const random = createRandom(year * 100 + month);
     for (let day = 1; day <= daysInMonth(year, month); day += 1) {
       for (const point of input.points) {
-        const slots = point.type === 'PRIVATE' ? PRIVATE_SLOTS : [VISITOR_SLOT];
+        const slots =
+          point.type === 'PRIVATE' ? PRIVATE_SLOTS : [visitorSlot(input)];
         for (const slot of slots) {
           const occurs = random() < slot.probability;
           const values = Array.from({ length: 6 }, random);
@@ -196,12 +214,13 @@ function buildSession(
   const powerKw = point.maxPowerKw;
   const chargingMinutes = Math.ceil((energyWh / 1000 / powerKw) * 60);
   const chargingEndedAt = addMinutes(startedAt, chargingMinutes);
+  const idle = point.idleTerms ?? DEFAULT_IDLE_TERMS;
   const idleMinutes = idleChance > 0.72 ? 2 + Math.floor(idleValue * 12) : 0;
   const endedAt = addMinutes(
     chargingEndedAt,
     idleMinutes > 0
-      ? GRACE_MINUTES + idleMinutes
-      : Math.floor(idleValue * GRACE_MINUTES),
+      ? idle.gracePeriodMinutes + idleMinutes
+      : Math.floor(idleValue * idle.gracePeriodMinutes),
   );
   const demand = ruleDemandFactor({
     at: startedAt,
@@ -215,8 +234,8 @@ function buildSession(
   const driver = input.drivers[Math.floor(driverValue * input.drivers.length)];
   const energyCostCents = Math.round((energyWh * rateCents) / 1000);
   const idleFeeCents = Math.min(
-    IDLE_FEE_CAP_CENTS,
-    idleMinutes * IDLE_FEE_CENTS_PER_MINUTE,
+    idle.idleFeeCapCents,
+    idleMinutes * idle.idleFeeCentsPerMinute,
   );
   const socGain = Math.round((energyWh / 1000 / BATTERY_CAPACITY_KWH) * 100);
   const initialSoc = Math.max(5, 100 - socGain);
@@ -240,9 +259,9 @@ function buildSession(
     lockedRateCents: rateCents,
     demandFactor: demand.factor,
     demandFactorSource: 'RULE',
-    idleFeeCentsPerMinute: IDLE_FEE_CENTS_PER_MINUTE,
-    idleFeeCapCents: IDLE_FEE_CAP_CENTS,
-    gracePeriodMinutes: GRACE_MINUTES,
+    idleFeeCentsPerMinute: idle.idleFeeCentsPerMinute,
+    idleFeeCapCents: idle.idleFeeCapCents,
+    gracePeriodMinutes: idle.gracePeriodMinutes,
     externalTransactionId: null,
     startedAt,
     chargingEndedAt,

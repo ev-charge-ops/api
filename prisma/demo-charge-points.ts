@@ -1,5 +1,8 @@
 import type { PrismaClient } from '../src/generated/prisma/client.js';
-import type { ChargePointType } from '../src/generated/prisma/enums.js';
+import type {
+  ChargePointType,
+  ConnectorType,
+} from '../src/generated/prisma/enums.js';
 
 export const DEMO_CHARGER_VENDOR = 'GoodWe HCA G2';
 export const DEMO_TARIFF_VALID_FROM = new Date('2026-01-01T03:00:00.000Z');
@@ -22,7 +25,13 @@ export interface DemoChargePoint {
   latitude: number;
   longitude: number;
   maxPowerKw: number;
-  charger: { id: string; serialNumber: string };
+  isOnline?: boolean;
+  charger: {
+    id: string;
+    serialNumber: string;
+    vendor?: string;
+    connector?: ConnectorType;
+  };
   tariff: DemoTariff | null;
 }
 
@@ -128,38 +137,47 @@ export async function upsertDemoSite(
   await upsertTariff(prisma, organizationId, null, site.tariff);
 
   for (const point of site.chargePoints) {
-    const data = {
-      code: point.code,
-      name: point.name,
-      type: point.type,
-      latitude: point.latitude,
-      longitude: point.longitude,
-      maxPowerKw: point.maxPowerKw,
-    };
-    await prisma.chargePoint.upsert({
-      where: { id: point.id },
-      update: data,
-      create: { ...data, id: point.id, organizationId },
-    });
-
-    const charger = {
-      vendor: DEMO_CHARGER_VENDOR,
-      serialNumber: point.charger.serialNumber,
-      connector: 'TYPE_2' as const,
-    };
-    await prisma.charger.upsert({
-      where: { id: point.charger.id },
-      update: charger,
-      create: { ...charger, id: point.charger.id, chargePointId: point.id },
-    });
-
-    if (point.tariff) {
-      await upsertTariff(prisma, organizationId, point.id, point.tariff);
-    }
+    await upsertDemoChargePoint(prisma, organizationId, point);
   }
 }
 
-async function upsertTariff(
+export async function upsertDemoChargePoint(
+  prisma: Pick<PrismaClient, 'chargePoint' | 'charger' | 'tariff'>,
+  organizationId: string,
+  point: DemoChargePoint,
+): Promise<void> {
+  const data = {
+    code: point.code,
+    name: point.name,
+    type: point.type,
+    latitude: point.latitude,
+    longitude: point.longitude,
+    maxPowerKw: point.maxPowerKw,
+    ...(point.isOnline === undefined ? {} : { isOnline: point.isOnline }),
+  };
+  await prisma.chargePoint.upsert({
+    where: { id: point.id },
+    update: data,
+    create: { ...data, id: point.id, organizationId },
+  });
+
+  const charger = {
+    vendor: point.charger.vendor ?? DEMO_CHARGER_VENDOR,
+    serialNumber: point.charger.serialNumber,
+    connector: point.charger.connector ?? ('TYPE_2' as const),
+  };
+  await prisma.charger.upsert({
+    where: { id: point.charger.id },
+    update: charger,
+    create: { ...charger, id: point.charger.id, chargePointId: point.id },
+  });
+
+  if (point.tariff) {
+    await upsertTariff(prisma, organizationId, point.id, point.tariff);
+  }
+}
+
+export async function upsertTariff(
   prisma: Pick<PrismaClient, 'tariff'>,
   organizationId: string,
   chargePointId: string | null,
