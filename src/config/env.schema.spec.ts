@@ -23,6 +23,8 @@ describe('validateEnv', () => {
       APP_URL: 'http://localhost:5173',
       GOOGLE_CLIENT_IDS: [],
       APPLE_CLIENT_IDS: [],
+      GOOGLE_WEB_CLIENT_ID: '',
+      GOOGLE_CLIENT_SECRET: '',
     });
   });
 
@@ -60,6 +62,16 @@ describe('validateEnv', () => {
       'io.softmoon.evchargeops',
       'io.softmoon.evchargeops.web',
     ]);
+  });
+
+  it('trims the Google authorization code flow settings', () => {
+    const env = validateEnv({
+      ...validEnv,
+      GOOGLE_WEB_CLIENT_ID: ' web.apps.googleusercontent.com ',
+      GOOGLE_CLIENT_SECRET: ' secret ',
+    });
+    expect(env.GOOGLE_WEB_CLIENT_ID).toBe('web.apps.googleusercontent.com');
+    expect(env.GOOGLE_CLIENT_SECRET).toBe('secret');
   });
 
   it('throws when DATABASE_URL is missing', () => {
