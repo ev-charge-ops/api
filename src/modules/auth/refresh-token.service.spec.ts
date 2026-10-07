@@ -68,4 +68,13 @@ describe('RefreshTokenService', () => {
     );
     expect(prisma.refreshToken.create).not.toHaveBeenCalled();
   });
+
+  it('revokes every active token of a user', async () => {
+    await service.revokeAllForUser('user-id');
+
+    expect(prisma.refreshToken.updateMany).toHaveBeenCalledWith({
+      where: { userId: 'user-id', revokedAt: null },
+      data: { revokedAt: expect.any(Date) },
+    });
+  });
 });
