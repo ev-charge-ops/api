@@ -1,0 +1,160 @@
+import { randomUUID } from 'node:crypto';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { Clock } from '../../../../common/clock/clock.js';
+import {
+  type ChargePointQuote,
+  ChargePointsService,
+} from '../../../charge-points/charge-points.service.js';
+import { allocatePowerKw } from '../../../charge-points/site-capacity.js';
+import { ChargerGateway } from '../../../charger-gateway/charger-gateway.port.js';
+import { toResponse } from '../../charging-session.mapper.js';
+import {
+  SessionErrorCode,
+  sessionConflict,
+  sessionError,
+} from '../../charging-session.errors.js';
+import {
+  ChargingSessionRepository,
+  CreateSessionResult,
+} from '../../database/charging-session.repository.port.js';
+import type { ChargingLimit } from '../../domain/charging-limit.js';
+import { ChargingSession } from '../../domain/charging-session.entity.js';
+import type { SessionResponseDto } from '../../dto/session.response.dto.js';
+import type {
+  ChargingLimitRequestDto,
+  StartSessionRequestDto,
+} from './start-session.request.dto.js';
+
+const WH_PER_KWH = 1000;
+
+@Injectable()
+export class StartSessionService {
+  private readonly logger = new Logger(StartSessionService.name);
+
+  constructor(
+    private readonly chargePoints: ChargePointsService,
+    private readonly sessions: ChargingSessionRepository,
+    private readonly gateway: ChargerGateway,
+    private readonly clock: Clock,
+  ) {}
+
+  async execute(
+    userId: string,
+    dto: StartSessionRequestDto,
+  ): Promise<SessionResponseDto> {
+    const now = this.clock.now();
+    const limit = toLimit(dto.limit);
+    const quote = await this.chargePoints.quote(userId, dto.chargePointId, now);
+    const { tariff, pricePerKwhCents, chargerSerialNumber } = quote;
+    if (quote.status === 'OFFLINE' || !chargerSerialNumber) {
+      throw sessionConflict(
+        SessionErrorCode.CHARGE_POINT_OFFLINE,
+        'Charge point is offline',
+      );
+    }
+    if (!tariff || pricePerKwhCents === null) {
+      throw sessionConflict(
+        SessionErrorCode.TARIFF_NOT_CONFIGURED,
+        'Charge point has no tariff',
+      );
+    }
+    const allocatedPowerKw = await this.allocatePower(quote);
+
+    const session = ChargingSession.create({
+      id: randomUUID(),
+      userId,
+      chargePointId: quote.chargePointId,
+      chargePointCode: quote.code,
+      chargePointName: quote.name,
+      chargerSerialNumber,
+      organizationId: quote.organizationId,
+      unitLabel: quote.membership?.unitLabel ?? null,
+      regime: quote.type,
+      limit,
+      allocatedPowerKw,
+      timeScale: this.gateway.timeScale,
+      lockedRateCents: pricePerKwhCents,
+      demandFactor: quote.demand.factor,
+      demandFactorSource: quote.demand.source,
+      idleFeeCentsPerMinute: tariff.idleFeeCentsPerMinute,
+      idleFeeCapCents: tariff.idleFeeCapCents,
+      gracePeriodMinutes: tariff.gracePeriodMinutes,
+      startedAt: now,
+    });
+
+    const created = await this.sessions.createExclusive(session);
+    if (created === CreateSessionResult.ACTIVE_SESSION_EXISTS) {
+      throw sessionConflict(
+        SessionErrorCode.ACTIVE_SESSION_EXISTS,
+        'You already have an active session',
+      );
+    }
+    if (created === CreateSessionResult.CHARGE_POINT_BUSY) {
+      throw sessionConflict(
+        SessionErrorCode.CHARGE_POINT_BUSY,
+        'Charge point is in use',
+      );
+    }
+
+    try {
+      const started = await this.gateway.start({
+        sessionId: session.id,
+        chargerSerialNumber,
+        allocatedPowerKw,
+      });
+      session.activate(started.transactionId, started.vehicle);
+    } catch (error) {
+      this.logger.warn(
+        `Charger ${chargerSerialNumber} did not start: ${String(error)}`,
+      );
+      session.interrupt(this.clock.now());
+      await this.sessions.save(session, []);
+      throw sessionError(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        SessionErrorCode.CHARGER_UNAVAILABLE,
+        'Charger did not start the session',
+      );
+    }
+    await this.sessions.save(session, []);
+    return toResponse(session);
+  }
+
+  private async allocatePower(quote: ChargePointQuote): Promise<number> {
+    const allocated = allocatePowerKw({
+      maxPowerKw: quote.maxPowerKw,
+      capacity: quote.capacity,
+      activeSessionsKw: await this.sessions.chargingPowerKw(
+        quote.organizationId,
+      ),
+    });
+    if (allocated === null) {
+      throw sessionConflict(
+        SessionErrorCode.BUILDING_CAPACITY_EXCEEDED,
+        'Building capacity is fully used, try again later',
+      );
+    }
+    return allocated;
+  }
+}
+
+function toLimit(dto: ChargingLimitRequestDto | undefined): ChargingLimit {
+  switch (dto?.type) {
+    case undefined:
+    case 'FULL':
+      return { type: 'FULL' };
+    case 'ENERGY':
+      return {
+        type: 'ENERGY',
+        energyWh: Math.round((dto.value ?? 0) * WH_PER_KWH),
+      };
+    case 'AMOUNT':
+      if (!Number.isInteger(dto.value)) {
+        throw sessionError(
+          HttpStatus.BAD_REQUEST,
+          SessionErrorCode.INVALID_LIMIT,
+          'AMOUNT limits take an integer value in cents',
+        );
+      }
+      return { type: 'AMOUNT', amountCents: dto.value ?? 0 };
+  }
+}
