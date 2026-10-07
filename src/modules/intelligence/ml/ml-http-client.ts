@@ -51,6 +51,10 @@ export class MlHttpClient {
   }
 }
 
+export function mlDayOfWeek(sundayBasedDay: number): number {
+  return (sundayBasedDay + 6) % 7;
+}
+
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

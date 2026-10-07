@@ -30,10 +30,16 @@ export const OCCUPYING_SESSION_STATUSES: OccupyingSessionStatus[] = [
 export class ChargePointsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findVisibleTo(userId: string, id?: string): Promise<ChargePointRecord[]> {
+  findVisibleTo(
+    userId: string,
+    filter: { id?: string; organizationId?: string } = {},
+  ): Promise<ChargePointRecord[]> {
     return this.prisma.chargePoint.findMany({
       where: {
-        ...(id ? { id } : {}),
+        ...(filter.id ? { id: filter.id } : {}),
+        ...(filter.organizationId
+          ? { organizationId: filter.organizationId }
+          : {}),
         OR: [
           { type: 'COMMERCIAL' },
           { organization: { memberships: { some: { userId } } } },
@@ -51,6 +57,13 @@ export class ChargePointsRepository {
         chargers: { orderBy: { createdAt: 'asc' } },
       },
       orderBy: [{ organization: { name: 'asc' } }, { code: 'asc' }],
+    });
+  }
+
+  findByOrganization(organizationId: string): Promise<ChargePoint[]> {
+    return this.prisma.chargePoint.findMany({
+      where: { organizationId },
+      orderBy: { code: 'asc' },
     });
   }
 

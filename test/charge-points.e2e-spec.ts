@@ -189,6 +189,26 @@ describe('Charge points (e2e)', () => {
     expect(await visibleIds(outsider)).toEqual([visitorsPointId, mallPointId]);
   });
 
+  it('filters the visible points by organization', async () => {
+    const ids = async (session: Session, organizationId: string) => {
+      const response = await call(
+        'get',
+        `/charge-points?organizationId=${organizationId}`,
+        session,
+      ).expect(200);
+      return (response.body as { id: string }[]).map((point) => point.id);
+    };
+
+    expect(await ids(manager, condominiumId)).toEqual([
+      privatePointId,
+      visitorsPointId,
+    ]);
+    expect(await ids(driver, mallId)).toEqual([mallPointId]);
+    expect(await ids(outsider, condominiumId)).toEqual([visitorsPointId]);
+    expect(await ids(driver, randomUUID())).toEqual([]);
+    await call('get', '/charge-points?organizationId=nope', driver).expect(400);
+  });
+
   it('prices private points at the utility rate and commercial ones with the demand factor', async () => {
     const response = await call('get', '/charge-points', driver).expect(200);
     const byId = new Map(

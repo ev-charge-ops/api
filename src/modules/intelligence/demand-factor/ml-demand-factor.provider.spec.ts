@@ -53,12 +53,24 @@ describe('MlDemandFactorProvider', () => {
     expect(init?.method).toBe('POST');
     expect(JSON.parse(init?.body as string)).toEqual({
       hour: 19,
-      dayOfWeek: 3,
+      dayOfWeek: 2,
       occupancyRatio: 0.33,
       queueLength: 1,
       chargePointType: 'COMMERCIAL',
     });
     expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('counts the days of the week from Monday like the model', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { factor: 1 }));
+
+    await provider.getFactor({
+      ...INPUT,
+      at: new Date('2026-10-11T10:00:00-03:00'),
+    });
+
+    const [, init] = fetchMock.mock.calls[0];
+    expect(JSON.parse(init?.body as string)).toMatchObject({ dayOfWeek: 6 });
   });
 
   it.each([

@@ -30,6 +30,8 @@ export interface OrganizationSessionFilters {
   range: MonthRange | null;
   unitLabel?: string;
   status?: ChargingSessionStatus;
+  chargePointId?: string;
+  anomaly?: boolean;
 }
 
 export interface OverviewSession {
@@ -41,6 +43,23 @@ export interface OverviewSession {
   energyWh: number;
   totalCents: number;
   allocatedPowerKw: number;
+  isAnomaly: boolean | null;
+}
+
+export interface RecentAnomalyRow {
+  sessionId: string;
+  status: ChargingSessionStatus;
+  regime: ChargePointType;
+  chargePoint: { id: string; code: string; name: string };
+  driver: { id: string; name: string };
+  unitLabel: string | null;
+  startedAt: Date;
+  endedAt: Date | null;
+  energyWh: number;
+  idleMinutes: number;
+  totalCents: number;
+  anomalyScore: number | null;
+  anomalyModelVersion: string | null;
 }
 
 export interface SiteDemand {
@@ -73,6 +92,12 @@ export abstract class CostSharingRepository {
     organizationId: string,
     range: MonthRange,
   ): Promise<OverviewSession[]>;
+
+  abstract findRecentAnomalies(
+    organizationId: string,
+    before: Date,
+    limit: number,
+  ): Promise<RecentAnomalyRow[]>;
 
   abstract findSiteDemand(organizationId: string): Promise<SiteDemand>;
 }

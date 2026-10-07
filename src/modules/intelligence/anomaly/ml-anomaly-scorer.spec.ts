@@ -11,14 +11,12 @@ function jsonResponse(status: number, body: unknown): Response {
 
 const FEATURES: SessionFeatures = {
   chargePointType: 'PRIVATE',
-  hour: 22,
-  dayOfWeek: 2,
+  startHour: 22,
+  dayOfWeek: 1,
   energyKwh: 29,
-  chargingMinutes: 290,
-  idleMinutes: 12,
-  averagePowerKw: 6,
-  allocatedPowerKw: 7,
-  totalCents: 2881,
+  durationMinutes: 312,
+  idleMinutes: 22,
+  averagePowerKw: 5.58,
 };
 
 describe('MlAnomalyScorer', () => {

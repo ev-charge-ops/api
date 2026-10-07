@@ -1,4 +1,4 @@
-import { createOriginMatcher } from './cors-origin.js';
+import { createCorsOptions, createOriginMatcher } from './cors-origin.js';
 
 describe('createOriginMatcher', () => {
   const matches = createOriginMatcher([
@@ -49,5 +49,32 @@ describe('createOriginMatcher', () => {
 
   it('rejects everything when no patterns are configured', () => {
     expect(createOriginMatcher([])('http://localhost:5173')).toBe(false);
+  });
+});
+
+describe('createCorsOptions', () => {
+  const options = createCorsOptions(['http://localhost:5173']);
+
+  function allows(origin: string | undefined): boolean | undefined {
+    let allowed: boolean | undefined;
+    (
+      options.origin as (
+        origin: string | undefined,
+        callback: (error: Error | null, allow?: boolean) => void,
+      ) => void
+    )(origin, (_error, allow) => {
+      allowed = allow;
+    });
+    return allowed;
+  }
+
+  it('exposes the download file name to the browser', () => {
+    expect(options.exposedHeaders).toEqual(['Content-Disposition']);
+  });
+
+  it('allows configured origins and requests without origin', () => {
+    expect(allows('http://localhost:5173')).toBe(true);
+    expect(allows(undefined)).toBe(true);
+    expect(allows('https://evil.example.com')).toBe(false);
   });
 });
