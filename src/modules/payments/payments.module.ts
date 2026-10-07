@@ -1,34 +1,52 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { Env } from '../../config/env.schema.js';
-import { StripePaymentGateway } from './adapters/stripe-payment.adapter.js';
+import {
+  StripePaymentGateway,
+  type StripePaymentOptions,
+} from './adapters/stripe-payment.adapter.js';
 import {
   DisabledPaymentGateway,
   PaymentGateway,
 } from './payment-gateway.port.js';
+import { PaymentGateways } from './payment-gateways.js';
 
 export function createPaymentGateway(
-  config: ConfigService<Env, true>,
+  options: StripePaymentOptions,
 ): PaymentGateway {
-  const secretKey = config.get('STRIPE_SECRET_KEY', { infer: true });
-  if (!secretKey) {
+  if (!options.secretKey) {
     return new DisabledPaymentGateway();
   }
-  return new StripePaymentGateway({
-    secretKey,
-    webhookSecret: config.get('STRIPE_WEBHOOK_SECRET', { infer: true }),
-    publishableKey: config.get('STRIPE_PUBLISHABLE_KEY', { infer: true }),
+  return new StripePaymentGateway(options);
+}
+
+export function createPaymentGateways(
+  config: ConfigService<Env, true>,
+): PaymentGateways {
+  return new PaymentGateways({
+    TEST: createPaymentGateway({
+      secretKey: config.get('STRIPE_SECRET_KEY', { infer: true }),
+      webhookSecret: config.get('STRIPE_WEBHOOK_SECRET', { infer: true }),
+      publishableKey: config.get('STRIPE_PUBLISHABLE_KEY', { infer: true }),
+    }),
+    LIVE: createPaymentGateway({
+      secretKey: config.get('STRIPE_LIVE_SECRET_KEY', { infer: true }),
+      webhookSecret: config.get('STRIPE_LIVE_WEBHOOK_SECRET', { infer: true }),
+      publishableKey: config.get('STRIPE_LIVE_PUBLISHABLE_KEY', {
+        infer: true,
+      }),
+    }),
   });
 }
 
 @Module({
   providers: [
     {
-      provide: PaymentGateway,
+      provide: PaymentGateways,
       inject: [ConfigService],
-      useFactory: createPaymentGateway,
+      useFactory: createPaymentGateways,
     },
   ],
-  exports: [PaymentGateway],
+  exports: [PaymentGateways],
 })
 export class PaymentsModule {}

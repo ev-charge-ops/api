@@ -8,10 +8,31 @@ import {
   type PaymentIntentSnapshot,
   PaymentIntentStatus,
   type PaymentWebhookEvent,
+  type RefundSnapshot,
 } from '../payment-gateway.port.js';
 
 export const FAKE_WEBHOOK_SIGNATURE = 'fake-stripe-signature';
 export const FAKE_PUBLISHABLE_KEY = 'pk_test_fake';
+export const FAKE_LIVE_WEBHOOK_SIGNATURE = 'fake-stripe-live-signature';
+export const FAKE_LIVE_PUBLISHABLE_KEY = 'pk_live_fake';
+
+export type FakePaymentMode = 'test' | 'live';
+
+const FAKE_MODES: Record<
+  FakePaymentMode,
+  { publishableKey: string; webhookSignature: string; idPrefix: string }
+> = {
+  test: {
+    publishableKey: FAKE_PUBLISHABLE_KEY,
+    webhookSignature: FAKE_WEBHOOK_SIGNATURE,
+    idPrefix: 'fake',
+  },
+  live: {
+    publishableKey: FAKE_LIVE_PUBLISHABLE_KEY,
+    webhookSignature: FAKE_LIVE_WEBHOOK_SIGNATURE,
+    idPrefix: 'live_fake',
+  },
+};
 
 export interface FakeIntent extends PaymentIntentSnapshot {
   customerId: string;
@@ -29,19 +50,27 @@ export class FakePaymentGateway extends PaymentGateway {
   readonly webhooksEnabled = true;
   readonly customers = new Map<string, PaymentCustomerRequest>();
   readonly intents = new Map<string, FakeIntent>();
+  readonly refunds = new Map<string, RefundSnapshot & { intentId: string }>();
+  readonly publishableKey: string | null;
+  private readonly webhookSignature: string;
+  private readonly idPrefix: string;
 
-  constructor(readonly publishableKey: string | null = FAKE_PUBLISHABLE_KEY) {
+  constructor(readonly mode: FakePaymentMode = 'test') {
     super();
+    const settings = FAKE_MODES[mode];
+    this.publishableKey = settings.publishableKey;
+    this.webhookSignature = settings.webhookSignature;
+    this.idPrefix = settings.idPrefix;
   }
 
   createCustomer(request: PaymentCustomerRequest): Promise<string> {
-    const id = `cus_fake_${shortId()}`;
+    const id = `cus_${this.idPrefix}_${shortId()}`;
     this.customers.set(id, request);
     return Promise.resolve(id);
   }
 
   authorize(request: AuthorizationRequest): Promise<PaymentIntentSnapshot> {
-    const id = `pi_fake_${shortId()}`;
+    const id = `pi_${this.idPrefix}_${shortId()}`;
     const intent: FakeIntent = {
       id,
       status: PaymentIntentStatus.REQUIRES_PAYMENT_METHOD,
@@ -58,8 +87,8 @@ export class FakePaymentGateway extends PaymentGateway {
     return Promise.resolve(snapshot(intent));
   }
 
-  createEphemeralKey(customerId: string): Promise<string> {
-    return Promise.resolve(`ek_test_fake_${shortId()}`);
+  createEphemeralKey(): Promise<string> {
+    return Promise.resolve(`ek_${this.mode}_fake_${shortId()}`);
   }
 
   retrieve(intentId: string): Promise<PaymentIntentSnapshot> {
@@ -92,8 +121,27 @@ export class FakePaymentGateway extends PaymentGateway {
     return Promise.resolve(snapshot(intent));
   }
 
+  refund(intentId: string, amountCents: number): Promise<RefundSnapshot> {
+    const intent = this.intent(intentId);
+    if (intent.status !== PaymentIntentStatus.SUCCEEDED) {
+      return Promise.reject(new Error(`${intentId} is ${intent.status}`));
+    }
+    if (amountCents > intent.amountReceivedCents) {
+      return Promise.reject(new Error('Amount exceeds the captured amount'));
+    }
+    const refund = { id: `re_${this.idPrefix}_${shortId()}`, amountCents };
+    this.refunds.set(refund.id, { ...refund, intentId });
+    return Promise.resolve(refund);
+  }
+
+  refundsOf(intentId: string): RefundSnapshot[] {
+    return [...this.refunds.values()]
+      .filter((refund) => refund.intentId === intentId)
+      .map(({ id, amountCents }) => ({ id, amountCents }));
+  }
+
   parseWebhookEvent(payload: Buffer, signature: string): PaymentWebhookEvent {
-    if (signature !== FAKE_WEBHOOK_SIGNATURE) {
+    if (signature !== this.webhookSignature) {
       throw new InvalidPaymentWebhookError('Invalid fake signature');
     }
     const event = JSON.parse(payload.toString('utf8')) as {
@@ -132,7 +180,7 @@ export class FakePaymentGateway extends PaymentGateway {
     };
     return {
       payload: Buffer.from(JSON.stringify(event)),
-      signature: FAKE_WEBHOOK_SIGNATURE,
+      signature: this.webhookSignature,
     };
   }
 

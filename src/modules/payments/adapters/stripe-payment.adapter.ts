@@ -9,6 +9,7 @@ import {
   PaymentIntentStatus,
   type PaymentWebhookEvent,
   PaymentsUnavailableError,
+  type RefundSnapshot,
 } from '../payment-gateway.port.js';
 
 export interface StripePaymentOptions {
@@ -99,6 +100,14 @@ export class StripePaymentGateway extends PaymentGateway {
       return toSnapshot(current);
     }
     return toSnapshot(await this.client.paymentIntents.cancel(intentId));
+  }
+
+  async refund(intentId: string, amountCents: number): Promise<RefundSnapshot> {
+    const refund = await this.client.refunds.create(
+      { payment_intent: intentId, amount: amountCents },
+      { idempotencyKey: `${intentId}-refund-${amountCents}` },
+    );
+    return { id: refund.id, amountCents: refund.amount };
   }
 
   parseWebhookEvent(payload: Buffer, signature: string): PaymentWebhookEvent {
