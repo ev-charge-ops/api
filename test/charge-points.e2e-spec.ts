@@ -220,6 +220,7 @@ describe('Charge points (e2e)', () => {
         demandFactor: 1.5,
         demandLevel: 'PEAK',
         demandFactorSource: 'RULE',
+        demandModelVersion: null,
         demandFactorApplied: false,
         idleFeeCentsPerMinute: 25,
         idleFeeCapCents: 3000,
