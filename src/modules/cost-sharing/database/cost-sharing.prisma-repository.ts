@@ -13,6 +13,7 @@ import {
   type OrganizationSessionRow,
   type OverviewSession,
   type RecentAnomalyRow,
+  type SessionPowerReading,
   type SiteDemand,
   type UnitMembership,
 } from './cost-sharing.repository.port.js';
@@ -204,22 +205,63 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
     const sessions = await this.prisma.chargingSession.findMany({
       where: { organizationId, startedAt: startedIn(range) },
       select: {
+        id: true,
         regime: true,
         status: true,
         startedAt: true,
         chargingEndedAt: true,
         endedAt: true,
         energyKwh: true,
+        energyCostCents: true,
         totalCents: true,
         allocatedPowerKw: true,
         isAnomaly: true,
+        user: {
+          select: {
+            memberships: {
+              where: { organizationId },
+              select: { id: true },
+              take: 1,
+            },
+          },
+        },
       },
     });
     return sessions.map((session) => ({
-      ...session,
+      id: session.id,
+      regime: session.regime,
+      status: session.status,
+      startedAt: session.startedAt,
+      chargingEndedAt: session.chargingEndedAt,
+      endedAt: session.endedAt,
       energyWh: toWh(session.energyKwh),
+      energyCostCents: session.energyCostCents,
+      totalCents: session.totalCents,
       allocatedPowerKw: session.allocatedPowerKw.toNumber(),
+      isAnomaly: session.isAnomaly,
+      isMember: session.user.memberships.length > 0,
     }));
+  }
+
+  async findPowerReadings(
+    organizationId: string,
+    range: MonthRange,
+  ): Promise<Map<string, SessionPowerReading[]>> {
+    const readings = await this.prisma.meterReading.findMany({
+      where: { session: { organizationId, startedAt: startedIn(range) } },
+      select: { sessionId: true, at: true, powerKw: true },
+      orderBy: { at: 'asc' },
+    });
+    const bySession = new Map<string, SessionPowerReading[]>();
+    for (const reading of readings) {
+      const sessionReadings = bySession.get(reading.sessionId) ?? [];
+      sessionReadings.push({
+        at: reading.at,
+        powerKw: reading.powerKw.toNumber(),
+      });
+      bySession.set(reading.sessionId, sessionReadings);
+    }
+    return bySession;
   }
 
   async findRecentAnomalies(

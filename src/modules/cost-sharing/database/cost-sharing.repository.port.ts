@@ -41,15 +41,23 @@ export interface OrganizationSessionFilters {
 }
 
 export interface OverviewSession {
+  id: string;
   regime: ChargePointType;
   status: ChargingSessionStatus;
   startedAt: Date;
   chargingEndedAt: Date | null;
   endedAt: Date | null;
   energyWh: number;
+  energyCostCents: number;
   totalCents: number;
   allocatedPowerKw: number;
   isAnomaly: boolean | null;
+  isMember: boolean;
+}
+
+export interface SessionPowerReading {
+  at: Date;
+  powerKw: number;
 }
 
 export interface RecentAnomalyRow {
@@ -114,6 +122,11 @@ export abstract class CostSharingRepository {
     organizationId: string,
     range: MonthRange,
   ): Promise<OverviewSession[]>;
+
+  abstract findPowerReadings(
+    organizationId: string,
+    range: MonthRange,
+  ): Promise<Map<string, SessionPowerReading[]>>;
 
   abstract findRecentAnomalies(
     organizationId: string,
