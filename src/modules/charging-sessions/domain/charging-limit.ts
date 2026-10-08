@@ -1,7 +1,8 @@
 export type ChargingLimit =
   | { type: 'FULL' }
   | { type: 'ENERGY'; energyWh: number }
-  | { type: 'AMOUNT'; amountCents: number };
+  | { type: 'AMOUNT'; amountCents: number }
+  | { type: 'PERCENT'; socPercent: number };
 
 export interface Vehicle {
   batteryCapacityWh: number;
@@ -9,8 +10,16 @@ export interface Vehicle {
 }
 
 export function energyToFullWh(vehicle: Vehicle): number {
-  const missing = Math.max(0, 100 - vehicle.socPercent);
+  return energyToSocWh(vehicle, 100);
+}
+
+export function energyToSocWh(vehicle: Vehicle, socPercent: number): number {
+  const missing = Math.max(0, Math.min(100, socPercent) - vehicle.socPercent);
   return Math.round((vehicle.batteryCapacityWh * missing) / 100);
+}
+
+export function isReachableSoc(vehicle: Vehicle, socPercent: number): boolean {
+  return socPercent > vehicle.socPercent;
 }
 
 export function targetEnergyWh(
@@ -24,6 +33,8 @@ export function targetEnergyWh(
       return full;
     case 'ENERGY':
       return Math.min(full, limit.energyWh);
+    case 'PERCENT':
+      return energyToSocWh(vehicle, limit.socPercent);
     case 'AMOUNT':
       if (rateCentsPerKwh <= 0) {
         return full;

@@ -51,6 +51,10 @@ export interface Telemetry {
 export abstract class ChargerGateway {
   abstract readonly timeScale: number;
 
+  abstract connectedVehicle(
+    chargerSerialNumber: string,
+  ): Promise<ConnectedVehicle | null>;
+
   abstract start(request: StartChargingRequest): Promise<StartedCharging>;
 
   abstract stop(request: StopChargingRequest): Promise<void>;

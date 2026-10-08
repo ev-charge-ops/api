@@ -22,7 +22,7 @@ export class ChargingLimitRequestDto {
   @ApiPropertyOptional({
     example: 10,
     description:
-      'Required for ENERGY (kWh, up to 3 decimals) and AMOUNT (integer cents)',
+      'Required for ENERGY (kWh, up to 3 decimals), AMOUNT (integer cents) and PERCENT (target state of charge, integer from 1 to 100 above the current one of the vehicle)',
   })
   @ValidateIf((limit: ChargingLimitRequestDto) => limit.type !== 'FULL')
   @IsNumber({ maxDecimalPlaces: 3 })
