@@ -54,6 +54,7 @@ enum ChargingLimitType {
   ENERGY
   AMOUNT
   FULL
+  PERCENT
 }
 
 enum DemandFactorSource {
@@ -293,6 +294,7 @@ model ChargingSession {
   limitType             ChargingLimitType     @default(FULL)
   limitEnergyKwh        Decimal?              @db.Decimal(10, 3)
   limitAmountCents      Int?
+  limitSocPercent       Int?
   targetEnergyKwh       Decimal?              @db.Decimal(10, 3)
   allocatedPowerKw      Decimal               @db.Decimal(6, 2)
   batteryCapacityKwh    Decimal?              @db.Decimal(6, 2)
