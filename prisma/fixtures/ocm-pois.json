@@ -1,0 +1,152 @@
+[
+  {
+    "ID": 1001,
+    "OperatorID": 23,
+    "OperatorInfo": { "ID": 23, "Title": "Tesla (Tesla-only charging)" },
+    "StatusTypeID": 50,
+    "StatusType": { "ID": 50, "Title": "Operational", "IsOperational": true },
+    "AddressInfo": {
+      "Title": "Shopping Morumbi",
+      "Town": "São Paulo",
+      "StateOrProvince": "São Paulo",
+      "Latitude": -23.6229,
+      "Longitude": -46.6989
+    },
+    "Connections": [
+      {
+        "ConnectionTypeID": 25,
+        "ConnectionType": { "ID": 25, "Title": "Type 2 (Socket Only)" },
+        "PowerKW": 22
+      },
+      {
+        "ConnectionTypeID": 33,
+        "ConnectionType": { "ID": 33, "Title": "CCS (Type 2)" },
+        "PowerKW": 150
+      }
+    ]
+  },
+  {
+    "ID": 1002,
+    "OperatorID": 1,
+    "OperatorInfo": { "ID": 1, "Title": "(Unknown Operator)" },
+    "StatusTypeID": 0,
+    "StatusType": { "ID": 0, "Title": "Unknown", "IsOperational": null },
+    "AddressInfo": {
+      "Title": "Posto Lagoa",
+      "Town": "Rio de Janeiro",
+      "StateOrProvince": "RJ",
+      "Latitude": -22.9711,
+      "Longitude": -43.2105
+    },
+    "Connections": [
+      {
+        "ConnectionTypeID": 1036,
+        "ConnectionType": { "ID": 1036, "Title": "Type 2 (Tethered Connector) " },
+        "PowerKW": null
+      }
+    ]
+  },
+  {
+    "ID": 1003,
+    "OperatorID": 45,
+    "OperatorInfo": { "ID": 45, "Title": "(Business Owner at Location)" },
+    "StatusTypeID": 100,
+    "StatusType": { "ID": 100, "Title": "Not Operational", "IsOperational": false },
+    "AddressInfo": {
+      "Title": "Hotel Esplanada",
+      "Town": "Brasília",
+      "StateOrProvince": null,
+      "Latitude": -15.7939,
+      "Longitude": -47.8828
+    },
+    "Connections": [
+      {
+        "ConnectionTypeID": 2,
+        "ConnectionType": { "ID": 2, "Title": "CHAdeMO" },
+        "PowerKW": 50
+      },
+      {
+        "ConnectionTypeID": 33,
+        "ConnectionType": { "ID": 33, "Title": "CCS (Type 2)" },
+        "PowerKW": 50
+      }
+    ]
+  },
+  {
+    "ID": 1004,
+    "OperatorID": 3456,
+    "OperatorInfo": { "ID": 3456, "Title": "EDP" },
+    "StatusTypeID": 10,
+    "AddressInfo": {
+      "Title": "  ",
+      "Town": "Londrina",
+      "StateOrProvince": "Estado do Paraná",
+      "Latitude": -23.3045,
+      "Longitude": -51.1696
+    },
+    "Connections": [
+      {
+        "ConnectionTypeID": 1,
+        "ConnectionType": { "ID": 1, "Title": "Type 1 (J1772)" },
+        "PowerKW": 7.4
+      }
+    ]
+  },
+  {
+    "ID": 1005,
+    "OperatorID": 3456,
+    "OperatorInfo": { "ID": 3456, "Title": "EDP" },
+    "StatusTypeID": 50,
+    "AddressInfo": {
+      "Title": "Sem coordenadas",
+      "StateOrProvince": "SP",
+      "Latitude": null,
+      "Longitude": null
+    },
+    "Connections": []
+  },
+  {
+    "ID": 1006,
+    "OperatorID": 23,
+    "OperatorInfo": { "ID": 23, "Title": "Tesla (Tesla-only charging)" },
+    "StatusTypeID": 75,
+    "AddressInfo": {
+      "Title": "Supercharger Curitiba",
+      "Town": "Curitiba",
+      "StateOrProvince": "Curitiba - PR",
+      "Latitude": -25.4284,
+      "Longitude": -49.2733
+    },
+    "Connections": [
+      {
+        "ConnectionType": { "Title": "CCS (Type 2)" },
+        "PowerKW": 600
+      }
+    ]
+  },
+  {
+    "ID": 1001,
+    "OperatorID": 23,
+    "OperatorInfo": { "ID": 23, "Title": "Tesla (Tesla-only charging)" },
+    "StatusTypeID": 50,
+    "AddressInfo": {
+      "Title": "Shopping Morumbi",
+      "StateOrProvince": "São Paulo",
+      "Latitude": -23.6229,
+      "Longitude": -46.6989
+    },
+    "Connections": []
+  },
+  {
+    "ID": 1007,
+    "OperatorID": null,
+    "StatusTypeID": 50,
+    "AddressInfo": {
+      "Title": "Praça Central",
+      "StateOrProvince": "Rio de Janeiro",
+      "Latitude": -22.9068,
+      "Longitude": -43.1729
+    },
+    "Connections": null
+  }
+]
