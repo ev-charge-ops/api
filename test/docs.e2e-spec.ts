@@ -88,6 +88,7 @@ describe('OpenAPI docs (e2e)', () => {
       'POST /me/push-tokens registerPushToken',
       'POST /organizations/{organizationId}/invites createInvite',
       'POST /organizations/{organizationId}/invites/{inviteId}/resend resendInvite',
+      'POST /organizations/{organizationId}/sessions/{sessionId}/anomaly-review reviewSessionAnomaly',
       'POST /payments/stripe/webhook handleStripeWebhook',
       'POST /sessions startSession',
       'POST /sessions/{sessionId}/payment/confirm confirmSessionPayment',

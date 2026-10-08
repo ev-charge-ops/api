@@ -11,6 +11,8 @@ import { CreatePaymentSheetController } from './commands/create-payment-sheet/cr
 import { CreatePaymentSheetService } from './commands/create-payment-sheet/create-payment-sheet.service.js';
 import { HandleStripeWebhookController } from './commands/handle-stripe-webhook/handle-stripe-webhook.controller.js';
 import { HandleStripeWebhookService } from './commands/handle-stripe-webhook/handle-stripe-webhook.service.js';
+import { ReviewSessionAnomalyController } from './commands/review-session-anomaly/review-session-anomaly.controller.js';
+import { ReviewSessionAnomalyService } from './commands/review-session-anomaly/review-session-anomaly.service.js';
 import { StartSessionController } from './commands/start-session/start-session.controller.js';
 import { StartSessionService } from './commands/start-session/start-session.service.js';
 import { StopSessionController } from './commands/stop-session/stop-session.controller.js';
@@ -47,6 +49,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     ListMySessionsController,
     GetSessionController,
     GetOrganizationSessionController,
+    ReviewSessionAnomalyController,
     StopSessionController,
     ConfirmSessionPaymentController,
     CreatePaymentSheetController,
@@ -67,6 +70,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     StopSessionService,
     GetSessionService,
     GetOrganizationSessionService,
+    ReviewSessionAnomalyService,
     GetActiveSessionService,
     ListMySessionsService,
     ConfirmSessionPaymentService,

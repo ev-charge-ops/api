@@ -56,6 +56,11 @@ export class GetOrganizationOverviewService {
       range.end,
       RECENT_ANOMALIES_LIMIT,
     );
+    const anomaliesPendingReviewCount =
+      await this.repository.countPendingAnomalyReviews(
+        organizationId,
+        range.end,
+      );
     const points =
       await this.chargePoints.listOrganizationPricing(organizationId);
 
@@ -101,6 +106,7 @@ export class GetOrganizationOverviewService {
       },
       energyByWeek: energyByWeek(sessions, range.end),
       anomaliesCount: sessions.filter((item) => item.isAnomaly === true).length,
+      anomaliesPendingReviewCount,
       recentAnomalies: recentAnomalies.map(({ energyWh, ...row }) =>
         Object.assign(new RecentAnomalyDto(), {
           ...row,

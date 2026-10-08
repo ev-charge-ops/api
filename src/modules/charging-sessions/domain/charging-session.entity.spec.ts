@@ -1,5 +1,6 @@
 import type { ChargingLimit } from './charging-limit.js';
 import {
+  AnomalyNotFlaggedError,
   ChargingSession,
   InvalidSessionTransitionError,
   SessionAlreadyEndedError,
@@ -289,6 +290,72 @@ describe('ChargingSession', () => {
       isAnomaly: true,
       anomalyModelVersion: 'iforest-1',
     });
+  });
+
+  it('queues flagged sessions for a manager review', () => {
+    const flagged = finishedCharging();
+    flagged.stop(at(250));
+    flagged.recordAnomaly({ score: 0.91, isAnomaly: true, modelVersion: 'v1' });
+    const normal = finishedCharging();
+    normal.stop(at(250));
+    normal.recordAnomaly({ score: 0.12, isAnomaly: false, modelVersion: 'v1' });
+
+    expect(flagged.toProps().anomalyReviewStatus).toBe('PENDING_REVIEW');
+    expect(normal.toProps().anomalyReviewStatus).toBeNull();
+  });
+
+  it('records the manager review of a flagged session without changing billing', () => {
+    const session = finishedCharging();
+    session.stop(at(250));
+    session.recordAnomaly({ score: 0.91, isAnomaly: true, modelVersion: 'v1' });
+    const totalCents = session.toProps().totalCents;
+
+    session.reviewAnomaly({
+      decision: 'DISMISSED',
+      note: 'Carga de visitante',
+      reviewerId: 'manager-1',
+      at: at(300),
+    });
+
+    expect(session.toProps()).toMatchObject({
+      isAnomaly: true,
+      anomalyReviewStatus: 'DISMISSED',
+      anomalyReviewNote: 'Carga de visitante',
+      anomalyReviewedAt: at(300),
+      anomalyReviewedById: 'manager-1',
+      totalCents,
+    });
+
+    session.reviewAnomaly({
+      decision: 'CONFIRMED',
+      note: null,
+      reviewerId: 'manager-2',
+      at: at(310),
+    });
+    expect(session.toProps()).toMatchObject({
+      anomalyReviewStatus: 'CONFIRMED',
+      anomalyReviewNote: null,
+      anomalyReviewedById: 'manager-2',
+    });
+  });
+
+  it('refuses to review sessions that are not flagged', () => {
+    const session = finishedCharging();
+    session.stop(at(250));
+    const review = {
+      decision: 'CONFIRMED' as const,
+      note: null,
+      reviewerId: 'manager-1',
+      at: at(300),
+    };
+
+    expect(() => session.reviewAnomaly(review)).toThrow(AnomalyNotFlaggedError);
+    session.recordAnomaly({
+      score: 0.12,
+      isAnomaly: false,
+      modelVersion: 'v1',
+    });
+    expect(() => session.reviewAnomaly(review)).toThrow(AnomalyNotFlaggedError);
   });
 
   it('only scores closed sessions', () => {

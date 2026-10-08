@@ -27,6 +27,7 @@ export class ListOrganizationSessionsService {
         status: query.status,
         chargePointId: query.chargePointId,
         anomaly: query.anomaly,
+        reviewStatus: query.reviewStatus,
       },
       { skip: (query.page - 1) * query.pageSize, take: query.pageSize },
     );

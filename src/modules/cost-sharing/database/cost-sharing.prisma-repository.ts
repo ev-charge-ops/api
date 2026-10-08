@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import type { MonthRange } from '../../../common/time/sao-paulo-time.js';
 import { PrismaService } from '../../../database/prisma.service.js';
-import type { Prisma } from '../../../generated/prisma/client.js';
+import type {
+  ChargingSession,
+  Prisma,
+} from '../../../generated/prisma/client.js';
 import type { StatementSession } from '../domain/monthly-statement.js';
 import {
   CostSharingRepository,
@@ -33,6 +36,23 @@ function anomalyFilter(
   return anomaly
     ? { isAnomaly: true }
     : { OR: [{ isAnomaly: false }, { isAnomaly: null }] };
+}
+
+function anomalyReviewOf(
+  session: Pick<
+    ChargingSession,
+    | 'anomalyReviewStatus'
+    | 'anomalyReviewNote'
+    | 'anomalyReviewedAt'
+    | 'anomalyReviewedById'
+  >,
+) {
+  return {
+    anomalyReviewStatus: session.anomalyReviewStatus,
+    anomalyReviewNote: session.anomalyReviewNote,
+    anomalyReviewedAt: session.anomalyReviewedAt,
+    anomalyReviewedById: session.anomalyReviewedById,
+  };
 }
 
 @Injectable()
@@ -134,6 +154,9 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
         ? { chargePointId: filters.chargePointId }
         : {}),
       ...anomalyFilter(filters.anomaly),
+      ...(filters.reviewStatus
+        ? { anomalyReviewStatus: filters.reviewStatus }
+        : {}),
     };
     const [sessions, total] = await this.prisma.$transaction([
       this.prisma.chargingSession.findMany({
@@ -169,6 +192,7 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
         totalCents: session.totalCents,
         anomalyScore: session.anomalyScore?.toNumber() ?? null,
         isAnomaly: session.isAnomaly,
+        ...anomalyReviewOf(session),
       })),
     };
   }
@@ -226,7 +250,21 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
       totalCents: session.totalCents,
       anomalyScore: session.anomalyScore?.toNumber() ?? null,
       anomalyModelVersion: session.anomalyModelVersion,
+      ...anomalyReviewOf(session),
     }));
+  }
+
+  countPendingAnomalyReviews(
+    organizationId: string,
+    before: Date,
+  ): Promise<number> {
+    return this.prisma.chargingSession.count({
+      where: {
+        organizationId,
+        anomalyReviewStatus: 'PENDING_REVIEW',
+        startedAt: { lt: before },
+      },
+    });
   }
 
   async findSiteDemand(organizationId: string): Promise<SiteDemand> {
