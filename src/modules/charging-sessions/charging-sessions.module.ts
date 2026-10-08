@@ -28,6 +28,7 @@ import { GetSessionController } from './queries/get-session/get-session.controll
 import { GetSessionService } from './queries/get-session/get-session.service.js';
 import { ListMySessionsController } from './queries/list-my-sessions/list-my-sessions.controller.js';
 import { ListMySessionsService } from './queries/list-my-sessions/list-my-sessions.service.js';
+import { OrganizationLiveSessions } from './organization-live-sessions.js';
 import { SessionEvents } from './session-events.js';
 import { SessionPayments } from './session-payments.js';
 import { SessionProjector } from './session-projector.js';
@@ -66,6 +67,7 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     SessionPayments,
     SessionProjector,
     SessionSynchronizer,
+    OrganizationLiveSessions,
     StartSessionService,
     StopSessionService,
     GetSessionService,
@@ -77,5 +79,6 @@ import { SessionSynchronizer } from './session-synchronizer.js';
     CreatePaymentSheetService,
     HandleStripeWebhookService,
   ],
+  exports: [OrganizationLiveSessions],
 })
 export class ChargingSessionsModule {}

@@ -2,8 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { Clock } from '../../../../common/clock/clock.js';
 import {
   formatMonth,
+  previousSaoPauloMonth,
   toSaoPauloTime,
 } from '../../../../common/time/sao-paulo-time.js';
+import { OrganizationLiveSessions } from '../../../charging-sessions/organization-live-sessions.js';
 import {
   CostSharingRepository,
   type OverviewSession,
@@ -15,6 +17,11 @@ import {
   roundTo,
   UPGRADE_ALERT_THRESHOLD_PERCENT,
 } from '../../domain/demand-profile.js';
+import {
+  isVisitorSession,
+  monthPeak,
+  monthTotals,
+} from '../../domain/overview-metrics.js';
 import { ChargePointsService } from '../../../charge-points/charge-points.service.js';
 import { GetMonthlyStatementService } from '../get-monthly-statement/get-monthly-statement.service.js';
 import {
@@ -34,6 +41,7 @@ export class GetOrganizationOverviewService {
     private readonly repository: CostSharingRepository,
     private readonly statements: GetMonthlyStatementService,
     private readonly chargePoints: ChargePointsService,
+    private readonly liveSessions: OrganizationLiveSessions,
     private readonly clock: Clock,
   ) {}
 
@@ -41,12 +49,24 @@ export class GetOrganizationOverviewService {
     organizationId: string,
     month: string | undefined,
   ): Promise<OrganizationOverviewResponseDto> {
+    const liveSessions = await this.liveSessions.refresh(organizationId);
     const now = this.clock.now();
     const { range, statement } = await this.statements.resolve(
       organizationId,
       month,
     );
     const sessions = await this.repository.findSessionsStartedIn(
+      organizationId,
+      range,
+    );
+    const previousRange = previousSaoPauloMonth(range);
+    const previous = monthTotals(
+      await this.repository.findSessionsStartedIn(
+        organizationId,
+        previousRange,
+      ),
+    );
+    const readings = await this.repository.findPowerReadings(
       organizationId,
       range,
     );
@@ -75,12 +95,27 @@ export class GetOrganizationOverviewService {
       averagePeakDemandKw,
       contracted,
     );
-    const energyWh = sessions.reduce((sum, item) => sum + item.energyWh, 0);
+    const totals = monthTotals(sessions);
+    const peak = monthPeak(sessions, readings, now);
+    const liveByPoint = new Map(
+      liveSessions.map((live) => [live.chargePointId, live]),
+    );
 
     return Object.assign(new OrganizationOverviewResponseDto(), {
       month: formatMonth(range),
-      energyKwh: energyWh / WH_PER_KWH,
-      sessionsCount: sessions.length,
+      energyKwh: totals.energyWh / WH_PER_KWH,
+      sessionsCount: totals.sessionsCount,
+      energyCents: totals.energyCents,
+      totalCents: totals.totalCents,
+      previousMonth: {
+        month: formatMonth(previousRange),
+        energyKwh: previous.energyWh / WH_PER_KWH,
+        sessionsCount: previous.sessionsCount,
+        energyCents: previous.energyCents,
+        totalCents: previous.totalCents,
+      },
+      visitorSessionsCount: sessions.filter(isVisitorSession).length,
+      monthPeak: peak,
       activeSessionsCount: site.activeSessionsCount,
       costSharingTotalCents: statement.totals.totalCents,
       commercialRevenueCents: sessions
@@ -113,9 +148,19 @@ export class GetOrganizationOverviewService {
           energyKwh: energyWh / WH_PER_KWH,
         }),
       ),
-      chargePoints: points.map((point) =>
-        Object.assign(new OverviewChargePointDto(), point),
-      ),
+      chargePoints: points.map((point) => {
+        const live = liveByPoint.get(point.id);
+        return Object.assign(new OverviewChargePointDto(), point, {
+          currentPowerKw: live?.powerKw ?? 0,
+          activeSession: live
+            ? {
+                sessionId: live.sessionId,
+                status: live.status,
+                graceEndsAt: live.graceEndsAt,
+              }
+            : null,
+        });
+      }),
     });
   }
 }

@@ -58,6 +58,17 @@ export class ChargingSessionPrismaRepository extends ChargingSessionRepository {
     return record ? toDomain(record) : null;
   }
 
+  async findOpenByOrganization(
+    organizationId: string,
+  ): Promise<ChargingSession[]> {
+    const records = await this.prisma.chargingSession.findMany({
+      where: { organizationId, status: { in: OPEN_SESSION_STATUSES } },
+      include: SESSION_INCLUDE,
+      orderBy: { startedAt: 'asc' },
+    });
+    return records.map(toDomain);
+  }
+
   async listByUser(
     userId: string,
     page: { skip: number; take: number },

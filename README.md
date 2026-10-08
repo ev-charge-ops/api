@@ -59,7 +59,7 @@ Implementadas em [`src/modules/charging-sessions`](src/modules/charging-sessions
 - Tarifa, fator de demanda, tolerância e multa por ocupação ficam travados no início da sessão.
 - Limite de recarga escolhido pelo motorista: até 100%, em kWh, em R$ ou até um percentual de carga da bateria (`PERCENT`, acima da carga atual do veículo). No `PERCENT` a simulação para quando a bateria chega ao alvo, e a previsão de término usa o mesmo modelo.
 - Um motorista tem no máximo uma sessão aberta, e um ponto atende uma sessão por vez. A potência é alocada pela capacidade disponível do local.
-- **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`, `GET /organizations/:organizationId/sessions/:sessionId`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
+- **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`, `GET /organizations/:organizationId/sessions/:sessionId`, e as sessões abertas da organização em `GET /organizations/:organizationId/overview`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
 - O carregador fica atrás da port `ChargerGateway`. O adapter `mock` simula a telemetria com tempo acelerado (`SIMULATION_SPEED`, 60 por padrão: 1 s real = 1 min de recarga). O adapter `sems` (API da GoodWe) ainda responde `501`.
 
 ### Detecção de anomalias
@@ -89,6 +89,8 @@ Implementados em [`src/modules/cost-sharing`](src/modules/cost-sharing) ([ADR 00
 - Exportação do extrato em CSV, no formato do Excel em português.
 - Extrato do morador no app (`GET /me/statements/{month}`): a linha da unidade do usuário calculada pelo mesmo rateio, com o mês aberto ou fechado, a tarifa da concessionária e a energia de cada dia do mês.
 - Visão geral do mês para o gestor: consumo, valores, capacidade elétrica, alerta de demanda e anomalias recentes.
+- A visão geral também traz os totais do mês anterior (`previousMonth`), as sessões de visitantes (pontos `COMMERCIAL` da organização ou motoristas que não são membros), o pico de demanda do mês e, por ponto, a potência atual e a sessão aberta.
+- Pico do mês (`monthPeak`): cada sessão que carregou no mês vira uma sequência de degraus de potência. Começa na potência alocada, segue o `powerKw` de cada leitura do medidor até a próxima e termina no fim da recarga (ou agora, se ainda está carregando). Sessões sem leituras, como o histórico do seed, usam a potência alocada do início ao fim. A soma das sessões sobrepostas dá a demanda simultânea; o pico é o maior valor e `at` é o instante em que ele começa. A reserva das áreas comuns não entra.
 
 A lista completa de endpoints, com exemplos, está no [Swagger](https://api.evchargeops.com.br/docs).
 
