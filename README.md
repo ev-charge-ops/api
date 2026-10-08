@@ -57,7 +57,7 @@ Implementadas em [`src/modules/charging-sessions`](src/modules/charging-sessions
 
 - Máquina de estados `AWAITING_PAYMENT → PENDING → ACTIVE → GRACE → IDLE → CLOSED / INTERRUPTED` numa entidade de domínio sem dependência do Nest ou do Prisma.
 - Tarifa, fator de demanda, tolerância e multa por ocupação ficam travados no início da sessão.
-- Limite de recarga escolhido pelo motorista: até 100%, em kWh ou em R$.
+- Limite de recarga escolhido pelo motorista: até 100%, em kWh, em R$ ou até um percentual de carga da bateria (`PERCENT`, acima da carga atual do veículo). No `PERCENT` a simulação para quando a bateria chega ao alvo, e a previsão de término usa o mesmo modelo.
 - Um motorista tem no máximo uma sessão aberta, e um ponto atende uma sessão por vez. A potência é alocada pela capacidade disponível do local.
 - **As sessões avançam na leitura:** não há fila nem cron. Cada consulta (`GET /sessions`, `GET /sessions/active`, `GET /sessions/:id`, `GET /organizations/:organizationId/sessions/:sessionId`) e o encerramento passam pelo [`SessionSynchronizer`](src/modules/charging-sessions/session-synchronizer.ts), que lê a telemetria até o instante atual, avança o estado e recalcula os valores, com controle otimista de concorrência.
 - O carregador fica atrás da port `ChargerGateway`. O adapter `mock` simula a telemetria com tempo acelerado (`SIMULATION_SPEED`, 60 por padrão: 1 s real = 1 min de recarga). O adapter `sems` (API da GoodWe) ainda responde `501`.
@@ -75,6 +75,7 @@ Implementada em [`ml-anomaly-scorer.ts`](src/modules/intelligence/anomaly/ml-ano
 Implementado em [`src/modules/payments`](src/modules/payments) e [`session-payments.ts`](src/modules/charging-sessions/session-payments.ts) ([ADR 0014](https://github.com/ev-charge-ops/docs/blob/main/adr/0014-stripe-preauthorization.md)).
 
 - **Só o ponto `COMMERCIAL`** usa pré-autorização no cartão. Os pontos `PRIVATE` são cobrados pelo rateio mensal.
+- O valor bloqueado cobre a energia do limite (`ENERGY`, `AMOUNT` ou, no `PERCENT`, capacidade da bateria × diferença de carga quando o carregador informa o veículo) até o teto de `PAYMENT_HOLD_ENERGY_KWH`, mais o teto da multa por ocupação.
 - A API cria um PaymentIntent com captura manual em **modo de teste** do Stripe e devolve os parâmetros do PaymentSheet para o app. O cartão é digitado no componente do Stripe e não passa pela API.
 - O webhook `POST /payments/stripe/webhook` (assinatura verificada e idempotente) ou a confirmação feita pelo app liberam a sessão. No encerramento, a API captura só o valor consumido e cancela o bloqueio quando não há o que cobrar.
 - Sem `STRIPE_SECRET_KEY`, iniciar sessão no ponto comercial responde `503 PAYMENTS_UNAVAILABLE`, e os pontos privados continuam funcionando.
