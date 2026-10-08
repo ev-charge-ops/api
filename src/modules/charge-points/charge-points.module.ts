@@ -5,6 +5,7 @@ import { OrganizationsModule } from '../organizations/organizations.module.js';
 import { ChargePointsController } from './charge-points.controller.js';
 import { ChargePointsRepository } from './charge-points.repository.js';
 import { ChargePointsService } from './charge-points.service.js';
+import { DemandFactorCache } from './demand-factor-cache.js';
 import { OrganizationTariffController } from './organization-tariff.controller.js';
 import { ChargePointQueue } from './queue/charge-point-queue.js';
 import { ChargePointQueueController } from './queue/charge-point-queue.controller.js';
@@ -21,6 +22,7 @@ import { TariffsService } from './tariffs.service.js';
   providers: [
     ChargePointsRepository,
     ChargePointsService,
+    DemandFactorCache,
     TariffsService,
     QueueRepository,
     ChargePointQueue,
