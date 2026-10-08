@@ -5,11 +5,13 @@ import type { Prisma } from '../../../generated/prisma/client.js';
 import type { StatementSession } from '../domain/monthly-statement.js';
 import {
   CostSharingRepository,
+  type OrganizationRates,
   type OrganizationSessionFilters,
   type OrganizationSessionRow,
   type OverviewSession,
   type RecentAnomalyRow,
   type SiteDemand,
+  type UnitMembership,
 } from './cost-sharing.repository.port.js';
 
 const WH_PER_KWH = 1000;
@@ -55,6 +57,7 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
       },
       select: {
         unitLabel: true,
+        startedAt: true,
         energyKwh: true,
         energyCostCents: true,
         idleFeeCents: true,
@@ -62,6 +65,7 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
     });
     return sessions.map((session) => ({
       unitLabel: session.unitLabel,
+      startedAt: session.startedAt,
       energyWh: toWh(session.energyKwh),
       energyCostCents: session.energyCostCents,
       idleFeeCents: session.idleFeeCents,
@@ -79,13 +83,41 @@ export class CostSharingPrismaRepository extends CostSharingRepository {
     );
   }
 
-  async findAccessFeeCents(organizationId: string, at: Date): Promise<number> {
+  async findOrganizationRates(
+    organizationId: string,
+    at: Date,
+  ): Promise<OrganizationRates> {
     const tariff = await this.prisma.tariff.findFirst({
       where: { organizationId, chargePointId: null, validFrom: { lt: at } },
       orderBy: { validFrom: 'desc' },
-      select: { accessFeeCents: true },
+      select: { accessFeeCents: true, utilityRateCents: true },
     });
-    return tariff?.accessFeeCents ?? 0;
+    return {
+      accessFeeCents: tariff?.accessFeeCents ?? 0,
+      utilityRateCents: tariff?.utilityRateCents ?? null,
+    };
+  }
+
+  async findUnitMemberships(userId: string): Promise<UnitMembership[]> {
+    const memberships = await this.prisma.membership.findMany({
+      where: {
+        userId,
+        unitLabel: { not: null },
+        organization: { type: 'PRIVATE' },
+      },
+      include: { organization: { select: { id: true, name: true } } },
+      orderBy: [{ organization: { name: 'asc' } }, { createdAt: 'asc' }],
+    });
+    return memberships.flatMap((membership) =>
+      membership.unitLabel
+        ? [
+            {
+              organization: membership.organization,
+              unitLabel: membership.unitLabel,
+            },
+          ]
+        : [],
+    );
   }
 
   async listSessions(

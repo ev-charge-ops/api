@@ -1,5 +1,6 @@
 export interface StatementSession {
   unitLabel: string | null;
+  startedAt: Date;
   energyWh: number;
   energyCostCents: number;
   idleFeeCents: number;
