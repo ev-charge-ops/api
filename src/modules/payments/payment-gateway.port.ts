@@ -70,6 +70,8 @@ export abstract class PaymentGateway {
 
   abstract createCustomer(request: PaymentCustomerRequest): Promise<string>;
 
+  abstract deleteCustomer(customerId: string): Promise<void>;
+
   abstract authorize(
     request: AuthorizationRequest,
   ): Promise<PaymentIntentSnapshot>;
@@ -102,6 +104,10 @@ export class DisabledPaymentGateway extends PaymentGateway {
   readonly publishableKey = null;
 
   createCustomer(): Promise<string> {
+    return Promise.reject(unavailable());
+  }
+
+  deleteCustomer(): Promise<void> {
     return Promise.reject(unavailable());
   }
 

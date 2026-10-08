@@ -35,9 +35,12 @@ function stubClient() {
   const refunds = {
     create: vi.fn().mockResolvedValue({ id: 're_1', amount: 1041 }),
   };
+  const customers = {
+    del: vi.fn().mockResolvedValue({ id: 'cus_1', deleted: true }),
+  };
   const client = new Stripe(OPTIONS.secretKey);
-  Object.assign(client, { paymentIntents, refunds });
-  return { client, paymentIntents, refunds };
+  Object.assign(client, { paymentIntents, refunds, customers });
+  return { client, paymentIntents, refunds, customers };
 }
 
 function signedEvent(type: string, objectId = 'pi_1') {
@@ -106,6 +109,15 @@ describe('StripePaymentGateway', () => {
     expect((await gateway.retrieve('pi_1')).failureCode).toBe(
       'insufficient_funds',
     );
+  });
+
+  it('deletes a customer', async () => {
+    const { client, customers } = stubClient();
+    const gateway = new StripePaymentGateway(OPTIONS, client);
+
+    await gateway.deleteCustomer('cus_1');
+
+    expect(customers.del).toHaveBeenCalledWith('cus_1');
   });
 
   it('refunds a captured intent once per amount', async () => {

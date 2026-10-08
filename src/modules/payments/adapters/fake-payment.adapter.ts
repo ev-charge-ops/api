@@ -69,6 +69,13 @@ export class FakePaymentGateway extends PaymentGateway {
     return Promise.resolve(id);
   }
 
+  deleteCustomer(customerId: string): Promise<void> {
+    if (!this.customers.delete(customerId)) {
+      return Promise.reject(new Error(`No such customer: ${customerId}`));
+    }
+    return Promise.resolve();
+  }
+
   authorize(request: AuthorizationRequest): Promise<PaymentIntentSnapshot> {
     const id = `pi_${this.idPrefix}_${shortId()}`;
     const intent: FakeIntent = {
