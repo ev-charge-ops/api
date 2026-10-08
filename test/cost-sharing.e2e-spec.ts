@@ -33,6 +33,7 @@ interface SessionFixture {
 }
 
 const NOW = new Date('2026-10-07T12:00:00.000-03:00');
+const PHOTO_URL = 'https://app.evchargeops.com.br/media/points/garage-a.webp';
 const local = (value: string) => new Date(`${value}:00.000-03:00`);
 
 describe('Cost sharing (e2e)', () => {
@@ -148,7 +149,12 @@ describe('Cost sharing (e2e)', () => {
       },
     });
     organizationId = organization.id;
-    const point = (code: string, type: 'PRIVATE' | 'COMMERCIAL', kw: number) =>
+    const point = (
+      code: string,
+      type: 'PRIVATE' | 'COMMERCIAL',
+      kw: number,
+      photoUrl: string | null = null,
+    ) =>
       prisma.chargePoint.create({
         data: {
           organizationId,
@@ -158,9 +164,10 @@ describe('Cost sharing (e2e)', () => {
           latitude: -23.569,
           longitude: -46.631,
           maxPowerKw: kw,
+          photoUrl,
         },
       });
-    const privatePoint = await point('L1-01', 'PRIVATE', 7);
+    const privatePoint = await point('L1-01', 'PRIVATE', 7, PHOTO_URL);
     const visitorsPoint = await point('L2-01', 'COMMERCIAL', 22);
     privatePointId = privatePoint.id;
     visitorsPointId = visitorsPoint.id;
@@ -511,6 +518,7 @@ describe('Cost sharing (e2e)', () => {
           name: 'Vaga L1-01',
           type: 'PRIVATE',
           maxPowerKw: 7,
+          photoUrl: PHOTO_URL,
           status: 'AVAILABLE',
           pricing: {
             pricePerKwhCents: 89,
@@ -530,6 +538,7 @@ describe('Cost sharing (e2e)', () => {
           id: visitorsPointId,
           type: 'COMMERCIAL',
           maxPowerKw: 22,
+          photoUrl: null,
           pricing: expect.objectContaining({
             pricePerKwhCents: 89,
             demandFactorApplied: true,

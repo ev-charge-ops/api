@@ -117,6 +117,15 @@ export class OverviewChargePointDto {
   @ApiProperty({ example: 7 })
   maxPowerKw: number;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    format: 'uri',
+    example: 'https://app.evchargeops.com.br/media/points/garage-a.webp',
+    description: 'Absolute URL of a photo of the point, null without one',
+  })
+  photoUrl: string | null;
+
   @ApiProperty({ enum: ChargePointStatus, enumName: 'ChargePointStatus' })
   status: ChargePointStatus;
 

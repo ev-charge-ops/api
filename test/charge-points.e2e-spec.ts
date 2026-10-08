@@ -19,6 +19,7 @@ interface Session {
 
 const PEAK_EVENING = new Date('2026-10-07T19:00:00-03:00');
 const TARIFF_START = new Date('2026-01-01T00:00:00-03:00');
+const PHOTO_URL = 'https://app.evchargeops.com.br/media/points/garage-a.webp';
 
 describe('Charge points (e2e)', () => {
   let app: INestApplication<App>;
@@ -122,6 +123,7 @@ describe('Charge points (e2e)', () => {
         latitude: -23.56905,
         longitude: -46.63145,
         maxPowerKw: 7,
+        photoUrl: PHOTO_URL,
         chargers: {
           create: { vendor: 'GoodWe HCA G2', serialNumber: `A-${run}` },
         },
@@ -225,6 +227,7 @@ describe('Charge points (e2e)', () => {
       latitude: -23.56905,
       longitude: -46.63145,
       maxPowerKw: 7,
+      photoUrl: PHOTO_URL,
       status: 'AVAILABLE',
       isMember: true,
       charger: {
@@ -252,6 +255,7 @@ describe('Charge points (e2e)', () => {
     });
     expect(byId.get(visitorsPointId)).toMatchObject({
       type: 'COMMERCIAL',
+      photoUrl: null,
       charger: null,
       pricing: {
         pricePerKwhCents: 284,
@@ -276,7 +280,14 @@ describe('Charge points (e2e)', () => {
     expect(response.body).toMatchObject({
       id: visitorsPointId,
       isMember: false,
+      photoUrl: null,
     });
+    const own = await call(
+      'get',
+      `/charge-points/${privatePointId}`,
+      driver,
+    ).expect(200);
+    expect(own.body.photoUrl).toBe(PHOTO_URL);
 
     await call('get', `/charge-points/${privatePointId}`, outsider).expect(404);
     await call('get', `/charge-points/${randomUUID()}`, driver).expect(404);
