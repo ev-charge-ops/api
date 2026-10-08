@@ -59,6 +59,44 @@ describe('holdAmountCents', () => {
     ).toBe(5000);
   });
 
+  it('holds the energy up to the target state of charge of a percent limit', () => {
+    const vehicle = { batteryCapacityWh: 50_000, socPercent: 42 };
+    expect(
+      holdAmountCents({
+        ...TERMS,
+        limit: { type: 'PERCENT', socPercent: 80 },
+        vehicle,
+      }),
+    ).toBe(8396);
+    expect(
+      holdAmountCents({
+        ...TERMS,
+        limit: { type: 'PERCENT', socPercent: 100 },
+        vehicle: { batteryCapacityWh: 100_000, socPercent: 10 },
+      }),
+    ).toBe(20_040);
+  });
+
+  it('holds the maximum energy for a percent limit without the vehicle', () => {
+    expect(
+      holdAmountCents({
+        ...TERMS,
+        limit: { type: 'PERCENT', socPercent: 80 },
+        vehicle: null,
+      }),
+    ).toBe(20_040);
+  });
+
+  it('rounds the hold up so it always covers the requested energy', () => {
+    const held = holdAmountCents({
+      ...TERMS,
+      limit: { type: 'ENERGY', energyWh: 10_001 },
+    });
+
+    expect(held).toBe(5841);
+    expect(chargeableEnergyWh(held, 3000, 284)).toBeGreaterThanOrEqual(10_001);
+  });
+
   it('never holds less than the minimum charge', () => {
     expect(
       holdAmountCents({
