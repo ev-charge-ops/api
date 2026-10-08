@@ -35,6 +35,11 @@ enum ChargePointType {
   COMMERCIAL
 }
 
+enum ChargePointSource {
+  SEED
+  OCM
+}
+
 enum ConnectorType {
   TYPE_2
   CCS_2
@@ -262,6 +267,7 @@ model ChargePoint {
   maxPowerKw     Decimal           @db.Decimal(6, 2)
   isOnline       Boolean           @default(true)
   photoUrl       String?
+  source         ChargePointSource @default(SEED)
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   chargers       Charger[]
@@ -271,6 +277,7 @@ model ChargePoint {
 
   @@unique([organizationId, code])
   @@index([type])
+  @@index([latitude, longitude])
 }
 
 model Charger {

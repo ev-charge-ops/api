@@ -43,6 +43,9 @@ As contas de demonstração estão descritas no [README do `docs`](https://githu
 
 - Pontos `PRIVATE` (rede do condomínio) e `COMMERCIAL` (visitantes), com estado, potência, foto opcional (`photoUrl`, URL absoluta) e capacidade elétrica do local (demanda contratada menos a reserva das áreas comuns).
 - Tarifa versionada pelo gestor: cada alteração cria uma versão nova com data de vigência, e uma tarifa específica do ponto tem prioridade sobre a da organização.
+- **Mapa com milhares de pontos:** `GET /charge-points?bbox=minLng,minLat,maxLng,maxLat&limit=` devolve itens leves de mapa (`ChargePointMapItemResponseDto`) dentro da área visível, do centro para fora, até `limit` (padrão 300, máximo 1000). O preço usa o fator de demanda já em cache para o operador naquela hora ou, sem cache, o preço base, sem chamar o modelo por ponto. Para o mapa afastado (zoom 9 ou menos), `GET /charge-points/clusters?bbox&zoom` agrupa os pontos numa grade em SQL (célula de `360 / 2^zoom / 4` graus) com `latitude`, `longitude`, `count` e `availableCount`. O índice `(latitude, longitude)` atende os dois.
+- Sem `bbox` (app 1.4.0), `GET /charge-points` continua devolvendo o formato completo, mas limitado: os pontos privados dos condomínios do usuário mais os comerciais a até 25 km do centro do condomínio (ou de São Paulo), no máximo 200. Com `organizationId`, a lista da organização segue completa.
+- O fator de demanda do modelo fica em cache em memória (LRU) por organização, tipo de ponto e hora, então detalhe, lista e início de sessão não chamam o `ml` de novo na mesma hora. O fallback por regras não entra no cache.
 
 ### Preço com fator de demanda da IA
 
