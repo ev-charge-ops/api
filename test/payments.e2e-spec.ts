@@ -7,14 +7,16 @@ import { AppModule } from './../src/app.module.js';
 import { Clock } from './../src/common/clock/clock.js';
 import { PrismaService } from './../src/database/prisma.service.js';
 import {
+  FAKE_LIVE_PUBLISHABLE_KEY,
   FAKE_PUBLISHABLE_KEY,
   FakePaymentGateway,
   type FakeWebhook,
 } from './../src/modules/payments/adapters/fake-payment.adapter.js';
 import {
   DisabledPaymentGateway,
-  PaymentGateway,
+  type PaymentGateway,
 } from './../src/modules/payments/payment-gateway.port.js';
+import { PaymentGateways } from './../src/modules/payments/payment-gateways.js';
 
 vi.hoisted(() => {
   process.env.AUTH_THROTTLE_LIMIT = '1000';
@@ -42,7 +44,7 @@ function plusRealMinutes(from: Date, minutes: number): Date {
 }
 
 async function createApp(
-  gateway: PaymentGateway,
+  gateways: { TEST: PaymentGateway; LIVE: PaymentGateway },
   clock: Clock,
 ): Promise<INestApplication<App>> {
   const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -50,8 +52,8 @@ async function createApp(
   })
     .overrideProvider(Clock)
     .useValue(clock)
-    .overrideProvider(PaymentGateway)
-    .useValue(gateway)
+    .overrideProvider(PaymentGateways)
+    .useValue(new PaymentGateways(gateways))
     .compile();
   const app = moduleFixture.createNestApplication({ rawBody: true });
   await app.init();
@@ -64,6 +66,7 @@ describe('Card payments (e2e)', () => {
   let now = PEAK_EVENING;
   const clock = { now: () => now };
   const payments = new FakePaymentGateway();
+  const livePayments = new FakePaymentGateway('live');
   const run = randomUUID();
   const emails: string[] = [];
   let organizationId: string;
@@ -98,16 +101,23 @@ describe('Card payments (e2e)', () => {
       .send(body);
   }
 
-  function deliver(webhook: FakeWebhook, target = app): request.Test {
+  function deliver(
+    webhook: FakeWebhook,
+    target = app,
+    path = '/payments/stripe/webhook',
+  ): request.Test {
     return request(target.getHttpServer())
-      .post('/payments/stripe/webhook')
+      .post(path)
       .set('Content-Type', 'application/json')
       .set('Stripe-Signature', webhook.signature)
       .send(webhook.payload.toString('utf8'));
   }
 
-  async function startCommercial(body: object = {}): Promise<request.Response> {
-    return post('/sessions', visitor, {
+  async function startCommercial(
+    body: object = {},
+    driver = visitor,
+  ): Promise<request.Response> {
+    return post('/sessions', driver, {
       chargePointId: commercialPointId,
       ...body,
     }).expect(201);
@@ -121,7 +131,7 @@ describe('Card payments (e2e)', () => {
   }
 
   beforeAll(async () => {
-    app = await createApp(payments, clock);
+    app = await createApp({ TEST: payments, LIVE: livePayments }, clock);
     prisma = app.get(PrismaService);
 
     visitor = await register('Vera');
@@ -189,10 +199,13 @@ describe('Card payments (e2e)', () => {
       lockedRateCents: 284,
       targetEnergyKwh: null,
       payment: {
+        mode: 'TEST',
         status: 'PENDING_AUTHORIZATION',
         currency: 'BRL',
         authorizedCents: FULL_HOLD_CENTS,
         capturedCents: null,
+        refundedCents: null,
+        refundedAt: null,
       },
       paymentSheet: {
         customerId: expect.stringMatching(/^cus_fake_/),
@@ -295,10 +308,13 @@ describe('Card payments (e2e)', () => {
       where: { sessionId: started.body.id },
     });
     expect(stored).toMatchObject({
+      mode: 'TEST',
       status: 'CAPTURED',
       capturedCents: 1041,
+      refundedCents: null,
       stripePaymentIntentId: intentId,
     });
+    expect(payments.refundsOf(intentId)).toEqual([]);
     expect(await pointStatus(commercialPointId)).toBe('AVAILABLE');
   });
 
@@ -306,6 +322,7 @@ describe('Card payments (e2e)', () => {
     const first = await prisma.user.findUniqueOrThrow({
       where: { id: visitor.id },
     });
+    expect(first.stripeLiveCustomerId).toBeNull();
     const started = await startCommercial();
 
     expect(started.body.paymentSheet.customerId).toBe(first.stripeCustomerId);
@@ -480,11 +497,190 @@ describe('Card payments (e2e)', () => {
     expect(unknown.body).toEqual({ received: true, processed: true });
   });
 
+  describe('LIVE mode with automatic refund', () => {
+    let reviewer: Session;
+
+    beforeAll(async () => {
+      reviewer = await register('Lia');
+      await prisma.user.update({
+        where: { id: reviewer.id },
+        data: { paymentMode: 'LIVE', autoRefund: true },
+      });
+    });
+
+    it('charges with the live keys and refunds the capture right away', async () => {
+      const started = await startCommercial({}, reviewer);
+      const intentId: string = started.body.payment.paymentIntentId;
+
+      expect(intentId).toMatch(/^pi_live_fake_/);
+      expect(started.body).toMatchObject({
+        status: 'AWAITING_PAYMENT',
+        payment: {
+          mode: 'LIVE',
+          status: 'PENDING_AUTHORIZATION',
+          authorizedCents: FULL_HOLD_CENTS,
+        },
+        paymentSheet: {
+          customerId: expect.stringMatching(/^cus_live_fake_/),
+          customerEphemeralKeySecret: expect.stringMatching(/^ek_live_fake_/),
+          publishableKey: FAKE_LIVE_PUBLISHABLE_KEY,
+        },
+      });
+      expect(payments.intents.has(intentId)).toBe(false);
+      const stored = await prisma.user.findUniqueOrThrow({
+        where: { id: reviewer.id },
+      });
+      expect(stored).toMatchObject({
+        stripeCustomerId: null,
+        stripeLiveCustomerId: started.body.paymentSheet.customerId,
+      });
+
+      livePayments.confirm(intentId);
+      const authorized = livePayments.webhook(
+        'payment_intent.amount_capturable_updated',
+        intentId,
+      );
+      await deliver(authorized).expect(400);
+      const delivered = await deliver(
+        authorized,
+        app,
+        '/payments/stripe/webhook/live',
+      ).expect(200);
+      expect(delivered.body).toEqual({ received: true, processed: true });
+      const duplicate = await deliver(
+        authorized,
+        app,
+        '/payments/stripe/webhook/live',
+      ).expect(200);
+      expect(duplicate.body).toEqual({ received: true, processed: false });
+
+      const active = await get(`/sessions/${started.body.id}`, reviewer).expect(
+        200,
+      );
+      expect(active.body).toMatchObject({
+        status: 'ACTIVE',
+        payment: { mode: 'LIVE', status: 'AUTHORIZED' },
+      });
+
+      now = plusSimulatedMinutes(now, 10);
+      const stopped = await post(
+        `/sessions/${started.body.id}/stop`,
+        reviewer,
+      ).expect(200);
+      expect(stopped.body).toMatchObject({
+        status: 'CLOSED',
+        totalCents: 1041,
+        payment: {
+          mode: 'LIVE',
+          status: 'REFUNDED',
+          capturedCents: 1041,
+          capturedAt: now.toISOString(),
+          refundedCents: 1041,
+          refundedAt: now.toISOString(),
+        },
+      });
+      expect(livePayments.refundsOf(intentId)).toEqual([
+        { id: expect.stringMatching(/^re_live_fake_/), amountCents: 1041 },
+      ]);
+
+      const succeeded = await deliver(
+        livePayments.webhook('payment_intent.succeeded', intentId),
+        app,
+        '/payments/stripe/webhook/live',
+      ).expect(200);
+      expect(succeeded.body.processed).toBe(true);
+      const reread = await get(`/sessions/${started.body.id}`, reviewer).expect(
+        200,
+      );
+      expect(reread.body.payment).toMatchObject({
+        status: 'REFUNDED',
+        refundedCents: 1041,
+      });
+      expect(livePayments.refundsOf(intentId)).toHaveLength(1);
+      expect(
+        await prisma.payment.findUniqueOrThrow({
+          where: { sessionId: started.body.id },
+        }),
+      ).toMatchObject({
+        mode: 'LIVE',
+        autoRefund: true,
+        status: 'REFUNDED',
+        refundedCents: 1041,
+      });
+    });
+
+    it('ignores TEST mode intents delivered to the live webhook', async () => {
+      const started = await startCommercial();
+      const intentId: string = started.body.payment.paymentIntentId;
+      payments.confirm(intentId);
+      const forged = livePayments.webhook(
+        'payment_intent.amount_capturable_updated',
+        intentId,
+      );
+
+      await deliver(forged, app, '/payments/stripe/webhook/live').expect(200);
+
+      const session = await get(`/sessions/${started.body.id}`, visitor).expect(
+        200,
+      );
+      expect(session.body.payment.status).toBe('PENDING_AUTHORIZATION');
+      await post(`/sessions/${started.body.id}/stop`, visitor).expect(200);
+    });
+
+    describe('without the live keys', () => {
+      let testOnlyApp: INestApplication<App>;
+
+      beforeAll(async () => {
+        testOnlyApp = await createApp(
+          { TEST: payments, LIVE: new DisabledPaymentGateway() },
+          clock,
+        );
+      });
+
+      afterAll(async () => {
+        await testOnlyApp.close();
+      });
+
+      it('refuses commercial sessions only for LIVE drivers', async () => {
+        const refused = await request(testOnlyApp.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${reviewer.accessToken}`)
+          .send({ chargePointId: commercialPointId })
+          .expect(503);
+        expect(refused.body.code).toBe('PAYMENTS_UNAVAILABLE');
+
+        const accepted = await request(testOnlyApp.getHttpServer())
+          .post('/sessions')
+          .set('Authorization', `Bearer ${visitor.accessToken}`)
+          .send({ chargePointId: commercialPointId })
+          .expect(201);
+        expect(accepted.body.payment.mode).toBe('TEST');
+        await post(`/sessions/${accepted.body.id}/stop`, visitor).expect(200);
+      });
+
+      it('answers the live webhook with 503', async () => {
+        const response = await deliver(
+          livePayments.webhook('payment_intent.succeeded', 'pi_unknown'),
+          testOnlyApp,
+          '/payments/stripe/webhook/live',
+        ).expect(503);
+
+        expect(response.body.code).toBe('PAYMENTS_UNAVAILABLE');
+      });
+    });
+  });
+
   describe('without Stripe configured', () => {
     let disabledApp: INestApplication<App>;
 
     beforeAll(async () => {
-      disabledApp = await createApp(new DisabledPaymentGateway(), clock);
+      disabledApp = await createApp(
+        {
+          TEST: new DisabledPaymentGateway(),
+          LIVE: new DisabledPaymentGateway(),
+        },
+        clock,
+      );
     });
 
     afterAll(async () => {

@@ -23,6 +23,7 @@ const user: User = {
   role: 'DRIVER',
   emailVerifiedAt: null,
   stripeCustomerId: null,
+  stripeLiveCustomerId: null,
   paymentMode: 'TEST',
   locationMode: 'DEMO',
   autoRefund: false,
