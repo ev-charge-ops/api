@@ -50,6 +50,12 @@ enum ChargingSessionStatus {
   INTERRUPTED
 }
 
+enum AnomalyReviewStatus {
+  PENDING_REVIEW
+  CONFIRMED
+  DISMISSED
+}
+
 enum ChargingLimitType {
   ENERGY
   AMOUNT
@@ -129,6 +135,7 @@ model User {
   invitesSent      Invite[]          @relation("InvitesSent")
   invitesAccepted  Invite[]          @relation("InvitesAccepted")
   sessions         ChargingSession[]
+  anomalyReviews   ChargingSession[] @relation("AnomalyReviews")
   consentRecords   ConsentRecord[]
   deletionRequests DeletionRequest[]
   pushTokens       PushToken[]
@@ -323,6 +330,11 @@ model ChargingSession {
   anomalyScore          Decimal?              @db.Decimal(5, 4)
   isAnomaly             Boolean?
   anomalyModelVersion   String?
+  anomalyReviewStatus   AnomalyReviewStatus?
+  anomalyReviewNote     String?
+  anomalyReviewedAt     DateTime?
+  anomalyReviewedById   String?
+  anomalyReviewedBy     User?                 @relation("AnomalyReviews", fields: [anomalyReviewedById], references: [id], onDelete: SetNull)
   createdAt             DateTime              @default(now())
   updatedAt             DateTime              @updatedAt
   readings              MeterReading[]
@@ -331,6 +343,7 @@ model ChargingSession {
   @@index([userId, status])
   @@index([chargePointId, status])
   @@index([organizationId, startedAt])
+  @@index([organizationId, anomalyReviewStatus])
 }
 
 model MeterReading {
