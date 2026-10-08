@@ -1,5 +1,6 @@
 import {
   formatMonth,
+  previousSaoPauloMonth,
   saoPauloDate,
   saoPauloMonth,
   saoPauloMonthOf,
@@ -36,6 +37,15 @@ describe('saoPauloMonth', () => {
   it('rolls over to the next year in December', () => {
     expect(saoPauloMonth(2026, 12).end).toEqual(
       new Date('2027-01-01T03:00:00.000Z'),
+    );
+  });
+
+  it('finds the previous month, across the year boundary', () => {
+    expect(formatMonth(previousSaoPauloMonth({ year: 2026, month: 8 }))).toBe(
+      '2026-07',
+    );
+    expect(previousSaoPauloMonth({ year: 2027, month: 1 })).toEqual(
+      saoPauloMonth(2026, 12),
     );
   });
 

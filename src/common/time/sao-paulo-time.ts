@@ -72,6 +72,14 @@ export function saoPauloMonth(year: number, month: number): MonthRange {
   };
 }
 
+export function previousSaoPauloMonth(
+  range: Pick<MonthRange, 'year' | 'month'>,
+): MonthRange {
+  return range.month === 1
+    ? saoPauloMonth(range.year - 1, 12)
+    : saoPauloMonth(range.year, range.month - 1);
+}
+
 export function saoPauloMonthOf(date: Date): MonthRange {
   const local = toSaoPauloTime(date);
   return saoPauloMonth(local.year, local.month);
