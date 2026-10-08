@@ -3,6 +3,7 @@ import type {
   ChargePointType,
   ConnectorType,
 } from '../src/generated/prisma/enums.js';
+import { DEFAULT_MEDIA_BASE_URL, pointPhotoUrl } from './demo-media.js';
 
 export const DEMO_CHARGER_VENDOR = 'GoodWe HCA G2';
 export const DEMO_TARIFF_VALID_FROM = new Date('2026-01-01T03:00:00.000Z');
@@ -26,6 +27,7 @@ export interface DemoChargePoint {
   longitude: number;
   maxPowerKw: number;
   isOnline?: boolean;
+  photoUrl: string | null;
   charger: {
     id: string;
     serialNumber: string;
@@ -54,7 +56,10 @@ const IDLE_TERMS = {
   gracePeriodMinutes: 10,
 };
 
-export function buildDemoSite(organizationId: string): DemoSite {
+export function buildDemoSite(
+  organizationId: string,
+  mediaBaseUrl = DEFAULT_MEDIA_BASE_URL,
+): DemoSite {
   return {
     organizationId,
     capacity: {
@@ -78,6 +83,7 @@ export function buildDemoSite(organizationId: string): DemoSite {
         latitude: -23.56905,
         longitude: -46.63145,
         maxPowerKw: 7,
+        photoUrl: pointPhotoUrl(mediaBaseUrl, 'garage-a.webp'),
         charger: {
           id: '5b0e8c1d-2f3a-4b6c-8d7e-9f0a1b2c3e01',
           serialNumber: 'GW-HCA-G2-0001',
@@ -92,6 +98,7 @@ export function buildDemoSite(organizationId: string): DemoSite {
         latitude: -23.56928,
         longitude: -46.63102,
         maxPowerKw: 7,
+        photoUrl: pointPhotoUrl(mediaBaseUrl, 'charger-wall.webp'),
         charger: {
           id: '5b0e8c1d-2f3a-4b6c-8d7e-9f0a1b2c3e02',
           serialNumber: 'GW-HCA-G2-0002',
@@ -106,6 +113,7 @@ export function buildDemoSite(organizationId: string): DemoSite {
         latitude: -23.5699,
         longitude: -46.6323,
         maxPowerKw: 22,
+        photoUrl: pointPhotoUrl(mediaBaseUrl, 'garage-b.webp'),
         charger: {
           id: '5b0e8c1d-2f3a-4b6c-8d7e-9f0a1b2c3e03',
           serialNumber: 'GW-HCA-G2-0003',
@@ -153,6 +161,7 @@ export async function upsertDemoChargePoint(
     latitude: point.latitude,
     longitude: point.longitude,
     maxPowerKw: point.maxPowerKw,
+    photoUrl: point.photoUrl,
     ...(point.isOnline === undefined ? {} : { isOnline: point.isOnline }),
   };
   await prisma.chargePoint.upsert({
