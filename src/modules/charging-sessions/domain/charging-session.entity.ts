@@ -1,4 +1,9 @@
 import {
+  type AnomalyReview,
+  type AnomalyReviewStatus,
+  reviewStatusFor,
+} from './anomaly-review.js';
+import {
   type ChargingLimit,
   targetEnergyWh,
   type Vehicle,
@@ -68,6 +73,10 @@ export interface ChargingSessionProps {
   anomalyScore: number | null;
   isAnomaly: boolean | null;
   anomalyModelVersion: string | null;
+  anomalyReviewStatus: AnomalyReviewStatus | null;
+  anomalyReviewNote: string | null;
+  anomalyReviewedAt: Date | null;
+  anomalyReviewedById: string | null;
   payment: SessionPayment | null;
   version: Date | null;
 }
@@ -125,6 +134,10 @@ export class InvalidSessionTransitionError extends Error {
   override readonly name = 'InvalidSessionTransitionError';
 }
 
+export class AnomalyNotFlaggedError extends Error {
+  override readonly name = 'AnomalyNotFlaggedError';
+}
+
 export class ChargingSession {
   private constructor(private props: ChargingSessionProps) {}
 
@@ -152,6 +165,10 @@ export class ChargingSession {
       anomalyScore: null,
       isAnomaly: null,
       anomalyModelVersion: null,
+      anomalyReviewStatus: null,
+      anomalyReviewNote: null,
+      anomalyReviewedAt: null,
+      anomalyReviewedById: null,
       payment: null,
       version: null,
     });
@@ -409,6 +426,17 @@ export class ChargingSession {
     this.props.anomalyScore = result.score;
     this.props.isAnomaly = result.isAnomaly;
     this.props.anomalyModelVersion = result.modelVersion;
+    this.props.anomalyReviewStatus = reviewStatusFor(result.isAnomaly);
+  }
+
+  reviewAnomaly(review: AnomalyReview): void {
+    if (this.props.isAnomaly !== true) {
+      throw new AnomalyNotFlaggedError('Session is not flagged as anomalous');
+    }
+    this.props.anomalyReviewStatus = review.decision;
+    this.props.anomalyReviewNote = review.note;
+    this.props.anomalyReviewedAt = review.at;
+    this.props.anomalyReviewedById = review.reviewerId;
   }
 
   private timelineChargingEnd(projected: Date | null): Date | null {
