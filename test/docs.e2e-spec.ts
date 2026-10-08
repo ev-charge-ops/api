@@ -55,6 +55,7 @@ describe('OpenAPI docs (e2e)', () => {
       'GET /organizations/{organizationId}/members listOrganizationMembers',
       'GET /organizations/{organizationId}/overview getOrganizationOverview',
       'GET /organizations/{organizationId}/sessions listOrganizationSessions',
+      'GET /organizations/{organizationId}/sessions/{sessionId} getOrganizationSession',
       'GET /organizations/{organizationId}/statements getMonthlyStatement',
       'GET /organizations/{organizationId}/statements/export.csv exportMonthlyStatementCsv',
       'GET /organizations/{organizationId}/tariff getOrganizationTariff',
