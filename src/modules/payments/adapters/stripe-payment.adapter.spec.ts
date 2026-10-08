@@ -32,9 +32,12 @@ function stubClient() {
     capture: vi.fn(),
     cancel: vi.fn().mockResolvedValue(intent({ status: 'canceled' })),
   };
+  const refunds = {
+    create: vi.fn().mockResolvedValue({ id: 're_1', amount: 1041 }),
+  };
   const client = new Stripe(OPTIONS.secretKey);
-  Object.assign(client, { paymentIntents });
-  return { client, paymentIntents };
+  Object.assign(client, { paymentIntents, refunds });
+  return { client, paymentIntents, refunds };
 }
 
 function signedEvent(type: string, objectId = 'pi_1') {
@@ -103,6 +106,19 @@ describe('StripePaymentGateway', () => {
     expect((await gateway.retrieve('pi_1')).failureCode).toBe(
       'insufficient_funds',
     );
+  });
+
+  it('refunds a captured intent once per amount', async () => {
+    const { client, refunds } = stubClient();
+    const gateway = new StripePaymentGateway(OPTIONS, client);
+
+    const refund = await gateway.refund('pi_1', 1041);
+
+    expect(refunds.create).toHaveBeenCalledWith(
+      { payment_intent: 'pi_1', amount: 1041 },
+      { idempotencyKey: 'pi_1-refund-1041' },
+    );
+    expect(refund).toEqual({ id: 're_1', amountCents: 1041 });
   });
 
   it('only cancels intents that can still be canceled', async () => {

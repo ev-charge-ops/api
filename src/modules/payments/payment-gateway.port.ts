@@ -42,6 +42,11 @@ export interface AuthorizationRequest {
   description: string;
 }
 
+export interface RefundSnapshot {
+  id: string;
+  amountCents: number;
+}
+
 export interface PaymentWebhookEvent {
   id: string;
   type: string;
@@ -80,6 +85,11 @@ export abstract class PaymentGateway {
 
   abstract cancel(intentId: string): Promise<PaymentIntentSnapshot>;
 
+  abstract refund(
+    intentId: string,
+    amountCents: number,
+  ): Promise<RefundSnapshot>;
+
   abstract parseWebhookEvent(
     payload: Buffer,
     signature: string,
@@ -112,6 +122,10 @@ export class DisabledPaymentGateway extends PaymentGateway {
   }
 
   cancel(): Promise<PaymentIntentSnapshot> {
+    return Promise.reject(unavailable());
+  }
+
+  refund(): Promise<RefundSnapshot> {
     return Promise.reject(unavailable());
   }
 
