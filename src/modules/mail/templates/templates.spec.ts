@@ -1,3 +1,4 @@
+import { accountDeleted } from './account-deleted.js';
 import { emailLoginCode } from './email-login-code.js';
 import { escapeHtml } from './escape-html.js';
 import { formatDuration } from './format-duration.js';
@@ -177,6 +178,25 @@ describe('organizationInvite', () => {
     expect(email.html).not.toContain('<script>');
     expect(email.html).not.toContain('<b>X</b>');
     expect(email.html).toContain('Condomínio &lt;b&gt;X&lt;/b&gt;');
+  });
+});
+
+describe('accountDeleted', () => {
+  const email = accountDeleted({
+    name: maliciousName,
+    deletedAt: new Date('2026-10-07T19:05:00.000Z'),
+  });
+
+  it('confirms the deletion in pt-BR with the local time', () => {
+    expect(email.subject).toBe('Sua conta foi excluída');
+    expect(email.text).toContain('07/10/2026 às 16:05 (horário de Brasília)');
+    expect(email.html).toContain('07/10/2026 às 16:05 (horário de Brasília)');
+    expect(email.text).toContain('histórico de recargas continua no rateio');
+  });
+
+  it('escapes the user name in html', () => {
+    expect(email.html).not.toContain('<script>');
+    expect(email.text).toContain(`Olá, ${maliciousName}!`);
   });
 });
 
