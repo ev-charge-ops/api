@@ -18,6 +18,11 @@ export interface SessionPage {
   total: number;
 }
 
+export interface SessionDriver {
+  id: string;
+  name: string;
+}
+
 export abstract class ChargingSessionRepository {
   abstract findById(id: string): Promise<ChargingSession | null>;
 
@@ -45,4 +50,6 @@ export abstract class ChargingSessionRepository {
   ): Promise<boolean>;
 
   abstract findReadings(sessionId: string): Promise<MeterSample[]>;
+
+  abstract findDriver(userId: string): Promise<SessionDriver | null>;
 }
