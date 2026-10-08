@@ -43,6 +43,8 @@ enum ChargePointSource {
 enum ConnectorType {
   TYPE_2
   CCS_2
+  CHADEMO
+  OTHER
 }
 
 enum ChargingSessionStatus {
@@ -268,6 +270,7 @@ model ChargePoint {
   isOnline       Boolean           @default(true)
   photoUrl       String?
   source         ChargePointSource @default(SEED)
+  externalId     String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   chargers       Charger[]
@@ -276,6 +279,7 @@ model ChargePoint {
   queueEntries   QueueEntry[]
 
   @@unique([organizationId, code])
+  @@unique([source, externalId])
   @@index([type])
   @@index([latitude, longitude])
 }

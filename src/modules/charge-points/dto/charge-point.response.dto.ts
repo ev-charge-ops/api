@@ -42,6 +42,15 @@ export class ChargePointResponseDto {
   })
   photoUrl: string | null;
 
+  @ApiProperty({
+    type: String,
+    nullable: true,
+    example: 'Dados de localização © Open Charge Map (CC BY-SA 4.0)',
+    description:
+      'Data attribution to show with the point, set for points imported from Open Charge Map and null otherwise',
+  })
+  attribution: string | null;
+
   @ApiProperty({ enum: ChargePointStatus, enumName: 'ChargePointStatus' })
   status: ChargePointStatus;
 

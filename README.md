@@ -180,6 +180,7 @@ O [`.env.example`](.env.example) documenta todas as variáveis. Preencha os valo
 | `PAYMENT_HOLD_ENERGY_KWH`, `PAYMENT_AUTHORIZATION_TIMEOUT_MINUTES` | valor da pré-autorização e prazo para o cartão ser autorizado |
 | `SEED_MANAGER_EMAIL`, `SEED_MANAGER_PASSWORD`, `SEED_DRIVER_EMAIL`, `SEED_DRIVER_PASSWORD` | contas de demonstração criadas pelo seed; as senhas são obrigatórias para rodar o seed |
 | `SEED_REVIEWER_EMAIL`, `SEED_REVIEWER_PASSWORD` | conta da revisão da App Store (padrão `appreview@evchargeops.com.br`); sem a senha o seed pula essa conta |
+| `OCM_API_KEY`, `OCM_API_URL`, `OCM_MAX_RESULTS` | importação do Open Charge Map (`npm run db:import-ocm`); a chave só é exigida pelo script |
 | `MEDIA_BASE_URL` | base das fotos dos pontos gravadas pelo seed (`<base>/points/<arquivo>.webp`); padrão `https://app.evchargeops.com.br/media` |
 
 ### 2. Instalação, banco e seed
@@ -193,6 +194,19 @@ npm run db:seed            # prisma db seed: cria o condomínio de demonstraçã
 O seed cria o Residencial Aclimação com três pontos (com foto), moradores, histórico de sessões e sessões anômalas. Com `SEED_REVIEWER_PASSWORD` definido, ele também cria a conta da revisão da App Store: motorista "Revisor App Store", e-mail verificado, morador da unidade "Revisão · 01" e com `paymentMode = LIVE`, `locationMode = DEVICE` e `autoRefund = true`. Para pontuar as anomalias da demonstração ele chama o serviço `ml` (por padrão o de produção) e, se não conseguir, usa uma regra simples **só para os dados do seed**. Essa regra não existe na API em execução.
 
 Para regenerar o cliente do Prisma depois de mudar o schema: `npm run prisma:generate`.
+
+#### Rede pública do Open Charge Map (opcional)
+
+```bash
+OCM_API_KEY=... npm run db:import-ocm
+```
+
+O script [`prisma/import-ocm.ts`](prisma/import-ocm.ts) **não faz parte do seed**. Ele busca os POIs do Brasil na API v3 do [Open Charge Map](https://openchargemap.org) (`countrycode=BR`, cabeçalho `X-API-Key`) por caixa de cada UF, dividindo em quatro a caixa que chega a `OCM_MAX_RESULTS`, e grava:
+
+- uma organização `COMMERCIAL` por operador do OCM (id determinístico de `ocm-operator:<id>`), com os operadores desconhecidos agrupados em "Rede pública · UF", e uma tarifa de demonstração por operador (base entre R$ 1,49 e R$ 2,29 por kWh, multa por ocupação e tolerância variando por operador);
+- um ponto por POI (`ocm-point:<poiId>`, código `OCM-<poiId>`, `source = OCM`, `externalId = <poiId>`), com a maior potência das conexões, o conector mapeado para `TYPE_2`, `CCS_2`, `CHADEMO` ou `OTHER`, o status (operacional fica disponível, o resto offline), um carregador simulado e uma das fotos de demonstração.
+
+A gravação é idempotente: `createMany` com `skipDuplicates` em lotes e depois a atualização de coordenadas e status. No fim, o script mostra quantos pontos ficaram em cada UF. Os pontos importados trazem `attribution` ("Dados de localização © Open Charge Map (CC BY-SA 4.0)") no detail e na lista.
 
 ### 3. Desenvolvimento
 
