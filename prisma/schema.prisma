@@ -239,6 +239,7 @@ model ChargePoint {
   longitude      Float
   maxPowerKw     Decimal           @db.Decimal(6, 2)
   isOnline       Boolean           @default(true)
+  photoUrl       String?
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
   chargers       Charger[]
