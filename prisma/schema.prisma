@@ -112,6 +112,16 @@ enum QueueEntryStatus {
   FULFILLED
 }
 
+enum PaymentMode {
+  TEST
+  LIVE
+}
+
+enum LocationMode {
+  DEMO
+  DEVICE
+}
+
 enum OneTimeTokenType {
   EMAIL_VERIFICATION
   PASSWORD_RESET
@@ -126,6 +136,9 @@ model User {
   role             Role              @default(DRIVER)
   emailVerifiedAt  DateTime?
   stripeCustomerId String?           @unique
+  paymentMode      PaymentMode       @default(TEST)
+  locationMode     LocationMode      @default(DEMO)
+  autoRefund       Boolean           @default(false)
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   refreshTokens    RefreshToken[]

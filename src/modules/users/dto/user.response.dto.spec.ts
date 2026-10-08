@@ -10,6 +10,9 @@ describe('UserResponseDto', () => {
       role: 'DRIVER',
       emailVerifiedAt: null,
       stripeCustomerId: null,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -21,6 +24,32 @@ describe('UserResponseDto', () => {
       role: 'DRIVER',
       emailVerified: false,
       hasPassword: true,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
+    });
+  });
+
+  it('exposes the payment and location modes', () => {
+    const dto = UserResponseDto.fromEntity({
+      id: 'user-id',
+      name: 'Revisor',
+      email: 'review@example.com',
+      passwordHash: 'hash',
+      role: 'DRIVER',
+      emailVerifiedAt: new Date(),
+      stripeCustomerId: null,
+      paymentMode: 'LIVE',
+      locationMode: 'DEVICE',
+      autoRefund: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    expect(dto).toMatchObject({
+      paymentMode: 'LIVE',
+      locationMode: 'DEVICE',
+      autoRefund: true,
     });
   });
 
@@ -33,6 +62,9 @@ describe('UserResponseDto', () => {
       role: 'DRIVER',
       emailVerifiedAt: new Date(),
       stripeCustomerId: null,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -49,6 +81,9 @@ describe('UserResponseDto', () => {
       role: 'DRIVER',
       emailVerifiedAt: new Date(),
       stripeCustomerId: null,
+      paymentMode: 'TEST',
+      locationMode: 'DEMO',
+      autoRefund: false,
       createdAt: new Date(),
       updatedAt: new Date(),
     });

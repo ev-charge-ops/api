@@ -25,6 +25,9 @@ function buildUser(overrides: Partial<User> = {}): User {
     role: 'DRIVER',
     emailVerifiedAt: new Date(),
     stripeCustomerId: null,
+    paymentMode: 'TEST',
+    locationMode: 'DEMO',
+    autoRefund: false,
     createdAt: new Date(),
     updatedAt: new Date(),
     ...overrides,
@@ -104,6 +107,9 @@ describe('AccountService', () => {
         role: 'DRIVER',
         emailVerified: true,
         hasPassword: false,
+        paymentMode: 'TEST',
+        locationMode: 'DEMO',
+        autoRefund: false,
       });
     });
 
