@@ -5,10 +5,18 @@ import type {
   ConsentEntry,
 } from '../domain/consent-purposes.js';
 import {
+  type DeletableAccount,
+  type DeletedAccount,
   type DeletionRequestRecord,
   PrivacyRepository,
   type UserDataExport,
 } from './privacy.repository.port.js';
+
+export const DELETED_USER_NAME = 'Usuário excluído';
+
+export function deletedUserEmail(userId: string): string {
+  return `deleted+${userId}@evchargeops.invalid`;
+}
 
 const DELETION_REQUEST_SELECT = {
   id: true,
@@ -152,6 +160,88 @@ export class PrivacyPrismaRepository extends PrivacyRepository {
         data: { userId, reason, createdAt: at },
         select: DELETION_REQUEST_SELECT,
       });
+    });
+  }
+
+  findDeletableAccount(userId: string): Promise<DeletableAccount | null> {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, passwordHash: true },
+    });
+  }
+
+  async findOrganizationsManagedOnlyBy(userId: string): Promise<string[]> {
+    const managed = await this.prisma.membership.findMany({
+      where: { userId, role: 'MANAGER' },
+      select: {
+        organization: {
+          select: {
+            name: true,
+            _count: {
+              select: { memberships: { where: { role: 'MANAGER' } } },
+            },
+          },
+        },
+      },
+      orderBy: { organization: { name: 'asc' } },
+    });
+    return managed
+      .filter(({ organization }) => organization._count.memberships === 1)
+      .map(({ organization }) => organization.name);
+  }
+
+  deleteAccount(userId: string, at: Date): Promise<DeletedAccount> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT "id" FROM "User" WHERE "id" = ${userId} FOR UPDATE`;
+      const customers = await tx.user.findUniqueOrThrow({
+        where: { id: userId },
+        select: { stripeCustomerId: true, stripeLiveCustomerId: true },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: DELETED_USER_NAME,
+          email: deletedUserEmail(userId),
+          passwordHash: null,
+          emailVerifiedAt: null,
+          stripeCustomerId: null,
+          stripeLiveCustomerId: null,
+        },
+      });
+      await tx.userIdentity.deleteMany({ where: { userId } });
+      await tx.refreshToken.deleteMany({ where: { userId } });
+      await tx.pushToken.deleteMany({ where: { userId } });
+      await tx.oneTimeToken.deleteMany({ where: { userId } });
+      const pending = await tx.deletionRequest.findFirst({
+        where: { userId, status: 'PENDING' },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true },
+      });
+      await tx.deletionRequest.updateMany({
+        where: { userId, status: 'PENDING' },
+        data: { status: 'COMPLETED', processedAt: at },
+      });
+      const deletionRequest = pending
+        ? await tx.deletionRequest.findUniqueOrThrow({
+            where: { id: pending.id },
+            select: DELETION_REQUEST_SELECT,
+          })
+        : await tx.deletionRequest.create({
+            data: {
+              userId,
+              status: 'COMPLETED',
+              createdAt: at,
+              processedAt: at,
+            },
+            select: DELETION_REQUEST_SELECT,
+          });
+      return {
+        deletionRequest,
+        stripeCustomers: {
+          TEST: customers.stripeCustomerId,
+          LIVE: customers.stripeLiveCustomerId,
+        },
+      };
     });
   }
 }

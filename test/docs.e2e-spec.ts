@@ -40,6 +40,7 @@ describe('OpenAPI docs (e2e)', () => {
     );
     expect(operations.sort()).toEqual([
       'DELETE /charge-points/{chargePointId}/queue leaveChargePointQueue',
+      'DELETE /me deleteMyAccount',
       'DELETE /me/push-tokens/{token} removePushToken',
       'DELETE /organizations/{organizationId}/invites/{inviteId} revokeInvite',
       'GET /auth/me getMe',
