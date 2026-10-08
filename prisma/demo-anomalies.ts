@@ -388,6 +388,7 @@ export async function insertDemoAnomalies(
       anomalyScore: result?.score ?? null,
       isAnomaly: result?.isAnomaly ?? null,
       anomalyModelVersion: result?.modelVersion ?? null,
+      anomalyReviewStatus: result?.isAnomaly ? 'PENDING_REVIEW' : null,
     });
   }
   if (data.length === 0) {
