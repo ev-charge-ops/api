@@ -27,6 +27,14 @@ export class SessionLimitDto {
 
   @ApiProperty({ type: Number, nullable: true, example: 2000 })
   amountCents: number | null;
+
+  @ApiProperty({
+    type: Number,
+    nullable: true,
+    example: 80,
+    description: 'Target state of charge of PERCENT limits',
+  })
+  socPercent: number | null;
 }
 
 export class SessionResponseDto {

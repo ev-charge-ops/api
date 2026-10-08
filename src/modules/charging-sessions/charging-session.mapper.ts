@@ -64,6 +64,9 @@ function limitFromRecord(record: ChargingSessionRecord): ChargingLimit {
   if (record.limitType === 'AMOUNT' && record.limitAmountCents !== null) {
     return { type: 'AMOUNT', amountCents: record.limitAmountCents };
   }
+  if (record.limitType === 'PERCENT' && record.limitSocPercent !== null) {
+    return { type: 'PERCENT', socPercent: record.limitSocPercent };
+  }
   return { type: 'FULL' };
 }
 
@@ -189,6 +192,7 @@ export function toCreateData(
     limitType: limit.type,
     limitEnergyKwh: limit.type === 'ENERGY' ? kwhDecimal(limit.energyWh) : null,
     limitAmountCents: limit.type === 'AMOUNT' ? limit.amountCents : null,
+    limitSocPercent: limit.type === 'PERCENT' ? limit.socPercent : null,
     allocatedPowerKw: props.allocatedPowerKw.toFixed(2),
     timeScale: props.timeScale,
     lockedRateCents: props.lockedRateCents,
@@ -285,6 +289,7 @@ function responseFields(
       type: limit.type,
       energyKwh: limit.type === 'ENERGY' ? whToKwh(limit.energyWh) : null,
       amountCents: limit.type === 'AMOUNT' ? limit.amountCents : null,
+      socPercent: limit.type === 'PERCENT' ? limit.socPercent : null,
     },
     targetEnergyKwh:
       props.targetEnergyWh === null ? null : whToKwh(props.targetEnergyWh),
