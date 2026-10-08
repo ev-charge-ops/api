@@ -228,6 +228,7 @@ describe('Charge points (e2e)', () => {
       longitude: -46.63145,
       maxPowerKw: 7,
       photoUrl: PHOTO_URL,
+      attribution: null,
       status: 'AVAILABLE',
       isMember: true,
       charger: {
