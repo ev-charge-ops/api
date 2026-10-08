@@ -69,6 +69,7 @@ Implementada em [`ml-anomaly-scorer.ts`](src/modules/intelligence/anomaly/ml-ano
 - Ao encerrar a sessão, a API monta as variáveis da sessão e chama `POST /anomaly-score` no serviço `ml`. O score, o indicador de anomalia e a versão do modelo ficam gravados na sessão.
 - **Não há fallback por regras.** Se a chamada falhar, passar do timeout ou devolver algo inválido, a sessão fecha normalmente e **fica sem score**, e o erro vai para o log. Sem `ML_URL`, nenhuma sessão é pontuada.
 - O gestor vê as anomalias na visão geral, filtra as sessões sinalizadas e abre a explicação do score no portal.
+- Toda sessão sinalizada entra na fila de revisão (`PENDING_REVIEW`). O gestor confirma (`CONFIRMED`) ou descarta (`DISMISSED`) com uma observação opcional em `POST /organizations/{organizationId}/sessions/{sessionId}/anomaly-review`. A revisão não muda a cobrança, e a visão geral mostra quantas sinalizações ainda esperam revisão.
 
 ### Pagamento no ponto comercial (Stripe)
 
