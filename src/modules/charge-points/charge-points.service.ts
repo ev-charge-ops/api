@@ -54,6 +54,7 @@ export interface OrganizationPointPricing {
   name: string;
   type: ChargePointType;
   maxPowerKw: number;
+  photoUrl: string | null;
   status: ChargePointStatus;
   pricing: ChargePointPricingDto | null;
 }
@@ -102,6 +103,7 @@ export class ChargePointsService {
       name: point.name,
       type: point.type,
       maxPowerKw: point.maxPowerKw.toNumber(),
+      photoUrl: point.photoUrl,
       status,
       pricing: toPricing(point.type, tariff, demand),
     }));
@@ -261,6 +263,7 @@ function toResponse({
     latitude: point.latitude,
     longitude: point.longitude,
     maxPowerKw: point.maxPowerKw.toNumber(),
+    photoUrl: point.photoUrl,
     status,
     isMember: point.organization.memberships.length > 0,
     charger: charger ? ChargerResponseDto.fromEntity(charger) : null,
