@@ -1,8 +1,15 @@
 import { ApiProperty } from '@nestjs/swagger';
 import {
+  type AnomalyReviewStatus,
   ChargePointType,
   ChargingSessionStatus,
 } from '../../../../generated/prisma/enums.js';
+import {
+  ANOMALY_REVIEW_NOTE_PROPERTY,
+  ANOMALY_REVIEW_STATUS_PROPERTY,
+  ANOMALY_REVIEWED_AT_PROPERTY,
+  ANOMALY_REVIEWED_BY_ID_PROPERTY,
+} from '../../../charging-sessions/dto/anomaly-review.properties.js';
 
 export class OrganizationSessionPointDto {
   @ApiProperty({ format: 'uuid' })
@@ -84,6 +91,18 @@ export class OrganizationSessionDto {
 
   @ApiProperty({ type: Boolean, nullable: true })
   isAnomaly: boolean | null;
+
+  @ApiProperty(ANOMALY_REVIEW_STATUS_PROPERTY)
+  anomalyReviewStatus: AnomalyReviewStatus | null;
+
+  @ApiProperty(ANOMALY_REVIEW_NOTE_PROPERTY)
+  anomalyReviewNote: string | null;
+
+  @ApiProperty(ANOMALY_REVIEWED_AT_PROPERTY)
+  anomalyReviewedAt: Date | null;
+
+  @ApiProperty(ANOMALY_REVIEWED_BY_ID_PROPERTY)
+  anomalyReviewedById: string | null;
 }
 
 export class OrganizationSessionPageDto {
