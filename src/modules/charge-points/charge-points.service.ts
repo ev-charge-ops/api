@@ -34,6 +34,8 @@ import {
 } from './tariff-rules.js';
 
 export const NEARBY_RADIUS_KM = 25;
+export const OCM_ATTRIBUTION =
+  'Dados de localização © Open Charge Map (CC BY-SA 4.0)';
 export const NEARBY_LIMIT = 200;
 
 export interface ChargePointQuote {
@@ -375,6 +377,7 @@ function toResponse({
     longitude: point.longitude,
     maxPowerKw: point.maxPowerKw.toNumber(),
     photoUrl: point.photoUrl,
+    attribution: point.source === 'OCM' ? OCM_ATTRIBUTION : null,
     status,
     isMember: point.organization.memberships.length > 0,
     charger: charger ? ChargerResponseDto.fromEntity(charger) : null,
