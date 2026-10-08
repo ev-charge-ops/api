@@ -6,6 +6,7 @@ import type {
   Payment,
   Prisma,
 } from '../../generated/prisma/client.js';
+import type { SessionDriver } from './database/charging-session.repository.port.js';
 import type { ChargingLimit } from './domain/charging-limit.js';
 import {
   ChargingSession,
@@ -15,6 +16,7 @@ import {
 } from './domain/charging-session.entity.js';
 import type { SessionPayment } from './domain/session-payment.js';
 import { MeterReadingDto } from './dto/meter-reading.dto.js';
+import { OrganizationSessionDetailResponseDto } from './dto/organization-session-detail.response.dto.js';
 import { SessionDetailResponseDto } from './dto/session-detail.response.dto.js';
 import { SessionPaymentDto } from './dto/session-payment.dto.js';
 import { SessionResponseDto } from './dto/session.response.dto.js';
@@ -242,6 +244,22 @@ export function toDetailResponse(
     responseFields(session, timeline),
     {
       readings: readings.map(toReadingDto),
+    },
+  );
+}
+
+export function toOrganizationDetailResponse(
+  session: ChargingSession,
+  readings: MeterSample[],
+  timeline: SessionTimeline,
+  driver: SessionDriver,
+): OrganizationSessionDetailResponseDto {
+  return Object.assign(
+    new OrganizationSessionDetailResponseDto(),
+    toDetailResponse(session, readings, timeline),
+    {
+      driver: { id: driver.id, name: driver.name },
+      anomalyModelVersion: session.toProps().anomalyModelVersion,
     },
   );
 }
