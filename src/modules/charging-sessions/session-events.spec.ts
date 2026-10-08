@@ -132,6 +132,8 @@ describe('sessionNotifications', () => {
     paid.attachPayment({
       intentId: 'pi_1',
       customerId: 'cus_1',
+      mode: 'TEST',
+      autoRefund: false,
       amountCents: 5000,
     });
     paid.recordPaymentFailed('card_declined');

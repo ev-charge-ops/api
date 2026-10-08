@@ -2,9 +2,10 @@ import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../../../../common/clock/clock.js';
 import {
   InvalidPaymentWebhookError,
-  PaymentGateway,
+  type PaymentGateway,
   type PaymentWebhookEvent,
 } from '../../../payments/payment-gateway.port.js';
+import { PaymentGateways } from '../../../payments/payment-gateways.js';
 import {
   paymentsUnavailable,
   SessionErrorCode,
@@ -12,6 +13,7 @@ import {
 } from '../../charging-session.errors.js';
 import { ChargingSessionRepository } from '../../database/charging-session.repository.port.js';
 import { PaymentRecordsRepository } from '../../database/payment-records.repository.js';
+import type { PaymentMode } from '../../domain/session-payment.js';
 import { SessionPayments } from '../../session-payments.js';
 import { WebhookReceiptDto } from './webhook-receipt.dto.js';
 
@@ -27,7 +29,7 @@ export class HandleStripeWebhookService {
   private readonly logger = new Logger(HandleStripeWebhookService.name);
 
   constructor(
-    private readonly gateway: PaymentGateway,
+    private readonly gateways: PaymentGateways,
     private readonly sessions: ChargingSessionRepository,
     private readonly records: PaymentRecordsRepository,
     private readonly payments: SessionPayments,
@@ -35,13 +37,15 @@ export class HandleStripeWebhookService {
   ) {}
 
   async execute(
+    mode: PaymentMode,
     payload: Buffer | undefined,
     signature: string | undefined,
   ): Promise<WebhookReceiptDto> {
-    if (!this.gateway.webhooksEnabled) {
+    const gateway = this.gateways.for(mode);
+    if (!gateway.webhooksEnabled) {
       throw paymentsUnavailable();
     }
-    const event = this.verify(payload, signature);
+    const event = this.verify(gateway, payload, signature);
     if (
       !HANDLED_PAYMENT_EVENTS.includes(event.type) ||
       !event.paymentIntentId
@@ -54,7 +58,7 @@ export class HandleStripeWebhookService {
     const session = await this.sessions.findByPaymentIntentId(
       event.paymentIntentId,
     );
-    if (session) {
+    if (session && session.payment?.mode === mode) {
       const reconciled = await this.payments.reconcile(
         session,
         this.clock.now(),
@@ -64,7 +68,7 @@ export class HandleStripeWebhookService {
       );
     } else {
       this.logger.log(
-        `Stripe ${event.type} ${event.id} has no session for ${event.paymentIntentId}`,
+        `Stripe ${mode} ${event.type} ${event.id} has no session for ${event.paymentIntentId}`,
       );
     }
     await this.records.markEventProcessed(event.id, event.type);
@@ -72,6 +76,7 @@ export class HandleStripeWebhookService {
   }
 
   private verify(
+    gateway: PaymentGateway,
     payload: Buffer | undefined,
     signature: string | undefined,
   ): PaymentWebhookEvent {
@@ -79,7 +84,7 @@ export class HandleStripeWebhookService {
       throw invalidSignature();
     }
     try {
-      return this.gateway.parseWebhookEvent(payload, signature);
+      return gateway.parseWebhookEvent(payload, signature);
     } catch (error) {
       if (error instanceof InvalidPaymentWebhookError) {
         throw invalidSignature();

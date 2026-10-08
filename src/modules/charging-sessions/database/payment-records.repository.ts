@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../database/prisma.service.js';
 import { Prisma } from '../../../generated/prisma/client.js';
+import type { PaymentMode } from '../../../generated/prisma/enums.js';
 
 export interface PayerProfile {
   email: string;
   name: string;
+  paymentMode: PaymentMode;
+  autoRefund: boolean;
   stripeCustomerId: string | null;
+  stripeLiveCustomerId: string | null;
 }
 
 const UNIQUE_VIOLATION = 'P2002';
@@ -17,14 +21,28 @@ export class PaymentRecordsRepository {
   findPayer(userId: string): Promise<PayerProfile> {
     return this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { email: true, name: true, stripeCustomerId: true },
+      select: {
+        email: true,
+        name: true,
+        paymentMode: true,
+        autoRefund: true,
+        stripeCustomerId: true,
+        stripeLiveCustomerId: true,
+      },
     });
   }
 
-  async saveCustomerId(userId: string, customerId: string): Promise<void> {
+  async saveCustomerId(
+    userId: string,
+    mode: PaymentMode,
+    customerId: string,
+  ): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
-      data: { stripeCustomerId: customerId },
+      data:
+        mode === 'LIVE'
+          ? { stripeLiveCustomerId: customerId }
+          : { stripeCustomerId: customerId },
     });
   }
 

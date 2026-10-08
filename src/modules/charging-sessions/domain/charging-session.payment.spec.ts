@@ -10,7 +10,7 @@ function at(minutes: number): Date {
   return new Date(REQUESTED_AT.getTime() + minutes * 60_000);
 }
 
-function commercialSession(): ChargingSession {
+function commercialSession(autoRefund = false): ChargingSession {
   const session = ChargingSession.create({
     id: 'session-1',
     userId: 'user-1',
@@ -36,13 +36,15 @@ function commercialSession(): ChargingSession {
   session.attachPayment({
     intentId: 'pi_1',
     customerId: 'cus_1',
+    mode: autoRefund ? 'LIVE' : 'TEST',
+    autoRefund,
     amountCents: 20_040,
   });
   return session;
 }
 
-function chargingSession(): ChargingSession {
-  const session = commercialSession();
+function chargingSession(autoRefund = false): ChargingSession {
+  const session = commercialSession(autoRefund);
   session.recordPaymentAuthorized(20_040, at(1));
   session.activate('tx-1', VEHICLE, at(2));
   return session;
@@ -150,6 +152,46 @@ describe('ChargingSession payments', () => {
       capturedAt: at(13),
     });
     expect(session.paymentSettlement).toBeNull();
+  });
+
+  it('refunds the captured amount of auto refund payments', () => {
+    const session = chargingSession(true);
+    session.recordTelemetry(
+      { at: at(12), energyWh: 3667, powerKw: 22, socPercent: 15 },
+      null,
+      at(12),
+    );
+    session.stop(at(12));
+    session.recordPaymentCaptured(1041, at(13));
+
+    expect(session.paymentSettlement).toEqual({
+      action: 'REFUND',
+      amountCents: 1041,
+    });
+    session.recordPaymentRefunded(1041, at(14));
+    expect(session.payment).toMatchObject({
+      mode: 'LIVE',
+      status: 'REFUNDED',
+      capturedCents: 1041,
+      refundedCents: 1041,
+      refundedAt: at(14),
+    });
+    expect(session.paymentSettlement).toBeNull();
+
+    session.recordPaymentCaptured(1041, at(15));
+    session.recordPaymentCanceled(at(15));
+    expect(session.payment?.status).toBe('REFUNDED');
+  });
+
+  it('only refunds captured payments', () => {
+    const session = commercialSession(true);
+
+    session.recordPaymentRefunded(1041, at(1));
+
+    expect(session.payment).toMatchObject({
+      status: 'PENDING_AUTHORIZATION',
+      refundedCents: null,
+    });
   });
 
   it('flags holds that were not authorized in time', () => {
