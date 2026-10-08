@@ -3,6 +3,8 @@ import { HttpException, HttpStatus } from '@nestjs/common';
 export const PrivacyErrorCode = {
   REQUIRED_CONSENT: 'REQUIRED_CONSENT',
   TERMS_VERSION_OUTDATED: 'TERMS_VERSION_OUTDATED',
+  INVALID_PASSWORD: 'INVALID_PASSWORD',
+  LAST_MANAGER: 'LAST_MANAGER',
 } as const;
 
 export type PrivacyErrorCode =
