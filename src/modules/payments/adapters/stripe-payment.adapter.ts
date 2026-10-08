@@ -47,6 +47,10 @@ export class StripePaymentGateway extends PaymentGateway {
     return customer.id;
   }
 
+  async deleteCustomer(customerId: string): Promise<void> {
+    await this.client.customers.del(customerId);
+  }
+
   async authorize(
     request: AuthorizationRequest,
   ): Promise<PaymentIntentSnapshot> {
