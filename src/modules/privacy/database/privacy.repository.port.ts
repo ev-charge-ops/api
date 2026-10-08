@@ -5,6 +5,7 @@ import type {
   IdentityProvider,
   MembershipRole,
   OrganizationType,
+  PaymentMode,
   PaymentStatus,
   Role,
 } from '../../../generated/prisma/enums.js';
@@ -67,6 +68,18 @@ export interface ExportedSession {
   } | null;
 }
 
+export interface DeletableAccount {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string | null;
+}
+
+export interface DeletedAccount {
+  deletionRequest: DeletionRequestRecord;
+  stripeCustomers: Record<PaymentMode, string | null>;
+}
+
 export interface UserDataExport {
   profile: ExportedProfile;
   memberships: ExportedMembership[];
@@ -92,4 +105,12 @@ export abstract class PrivacyRepository {
     reason: string | null,
     at: Date,
   ): Promise<DeletionRequestRecord>;
+
+  abstract findDeletableAccount(
+    userId: string,
+  ): Promise<DeletableAccount | null>;
+
+  abstract findOrganizationsManagedOnlyBy(userId: string): Promise<string[]>;
+
+  abstract deleteAccount(userId: string, at: Date): Promise<DeletedAccount>;
 }
