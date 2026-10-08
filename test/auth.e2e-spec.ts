@@ -43,6 +43,9 @@ describe('Auth (e2e)', () => {
         role: 'DRIVER',
         emailVerified: false,
         hasPassword: true,
+        paymentMode: 'TEST',
+        locationMode: 'DEMO',
+        autoRefund: false,
       },
       accessToken: expect.any(String),
       refreshToken: expect.any(String),
@@ -147,6 +150,45 @@ describe('Auth (e2e)', () => {
       await refresh(refreshToken).expect(401);
       await refresh(refreshed.body.refreshToken).expect(401);
     });
+  });
+
+  it('exposes the payment and location modes of the user', async () => {
+    const server = app.getHttpServer();
+    const prisma = app.get(PrismaService);
+    await prisma.user.update({
+      where: { email },
+      data: { paymentMode: 'LIVE', locationMode: 'DEVICE', autoRefund: true },
+    });
+    const modes = {
+      paymentMode: 'LIVE',
+      locationMode: 'DEVICE',
+      autoRefund: true,
+    };
+
+    try {
+      const loggedIn = await request(server)
+        .post('/auth/login')
+        .send({ email, password })
+        .expect(200);
+      expect(loggedIn.body.user).toMatchObject(modes);
+
+      const me = await request(server)
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${loggedIn.body.accessToken}`)
+        .expect(200);
+      expect(me.body).toMatchObject(modes);
+
+      const refreshed = await request(server)
+        .post('/auth/refresh')
+        .send({ refreshToken: loggedIn.body.refreshToken })
+        .expect(200);
+      expect(refreshed.body.user).toMatchObject(modes);
+    } finally {
+      await prisma.user.update({
+        where: { email },
+        data: { paymentMode: 'TEST', locationMode: 'DEMO', autoRefund: false },
+      });
+    }
   });
 
   it('rejects /auth/me without a token', () => {

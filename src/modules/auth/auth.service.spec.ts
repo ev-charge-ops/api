@@ -36,6 +36,9 @@ function createInMemoryPrisma() {
           role: 'DRIVER',
           emailVerifiedAt: null,
           stripeCustomerId: null,
+          paymentMode: 'TEST',
+          locationMode: 'DEMO',
+          autoRefund: false,
           createdAt: new Date(),
           updatedAt: new Date(),
           ...data,
@@ -142,6 +145,9 @@ describe('AuthService', () => {
         role: 'DRIVER',
         emailVerified: false,
         hasPassword: true,
+        paymentMode: 'TEST',
+        locationMode: 'DEMO',
+        autoRefund: false,
       });
     });
 
@@ -220,6 +226,9 @@ describe('AuthService', () => {
         role: 'DRIVER',
         emailVerifiedAt: new Date(),
         stripeCustomerId: null,
+        paymentMode: 'TEST',
+        locationMode: 'DEMO',
+        autoRefund: false,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
