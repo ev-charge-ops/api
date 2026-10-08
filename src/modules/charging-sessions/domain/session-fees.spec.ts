@@ -4,7 +4,12 @@ import {
   idleFeeCents,
   sessionMinutesBetween,
 } from './session-fees.js';
-import { energyToFullWh, targetEnergyWh } from './charging-limit.js';
+import {
+  energyToFullWh,
+  energyToSocWh,
+  isReachableSoc,
+  targetEnergyWh,
+} from './charging-limit.js';
 
 describe('energyCostCents', () => {
   it('prices energy in whole cents', () => {
@@ -80,5 +85,26 @@ describe('targetEnergyWh', () => {
     expect(
       targetEnergyWh({ type: 'AMOUNT', amountCents: 100_000 }, vehicle, 89),
     ).toBe(29_000);
+  });
+
+  it('charges up to the target state of charge of a percent limit', () => {
+    expect(
+      targetEnergyWh({ type: 'PERCENT', socPercent: 80 }, vehicle, 89),
+    ).toBe(19_000);
+    expect(
+      targetEnergyWh({ type: 'PERCENT', socPercent: 100 }, vehicle, 89),
+    ).toBe(29_000);
+    expect(
+      targetEnergyWh({ type: 'PERCENT', socPercent: 42 }, vehicle, 89),
+    ).toBe(0);
+    expect(
+      energyToSocWh({ batteryCapacityWh: 64_000, socPercent: 17 }, 63),
+    ).toBe(29_440);
+  });
+
+  it('only reaches a state of charge above the current one', () => {
+    expect(isReachableSoc(vehicle, 43)).toBe(true);
+    expect(isReachableSoc(vehicle, 42)).toBe(false);
+    expect(isReachableSoc(vehicle, 30)).toBe(false);
   });
 });
