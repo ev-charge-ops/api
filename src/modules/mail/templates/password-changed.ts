@@ -1,4 +1,4 @@
-import { toSaoPauloTime } from '../../../common/time/sao-paulo-time.js';
+import { formatSaoPauloDateTime } from './format-date-time.js';
 import { renderLayout } from './layout.js';
 import type { RenderedEmail } from './rendered-email.js';
 
@@ -26,10 +26,4 @@ export function passwordChanged(params: PasswordChangedParams): RenderedEmail {
       ],
     }),
   };
-}
-
-function formatSaoPauloDateTime(date: Date): string {
-  const time = toSaoPauloTime(date);
-  const pad = (value: number) => String(value).padStart(2, '0');
-  return `${pad(time.day)}/${pad(time.month)}/${time.year} às ${pad(time.hour)}:${pad(time.minute)}`;
 }
