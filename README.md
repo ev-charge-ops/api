@@ -85,6 +85,7 @@ Implementados em [`src/modules/cost-sharing`](src/modules/cost-sharing) ([ADR 00
 
 - Extrato do mês por unidade: energia (kWh × tarifa travada) + taxa de acesso + multas por ocupação, só com sessões de pontos `PRIVATE`.
 - Exportação do extrato em CSV, no formato do Excel em português.
+- Extrato do morador no app (`GET /me/statements/{month}`): a linha da unidade do usuário calculada pelo mesmo rateio, com o mês aberto ou fechado, a tarifa da concessionária e a energia de cada dia do mês.
 - Visão geral do mês para o gestor: consumo, valores, capacidade elétrica, alerta de demanda e anomalias recentes.
 
 A lista completa de endpoints, com exemplos, está no [Swagger](https://api.evchargeops.com.br/docs).
