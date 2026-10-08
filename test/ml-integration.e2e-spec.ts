@@ -8,7 +8,8 @@ import { AppModule } from './../src/app.module.js';
 import { Clock } from './../src/common/clock/clock.js';
 import { PrismaService } from './../src/database/prisma.service.js';
 import { FakePaymentGateway } from './../src/modules/payments/adapters/fake-payment.adapter.js';
-import { PaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
+import { DisabledPaymentGateway } from './../src/modules/payments/payment-gateway.port.js';
+import { PaymentGateways } from './../src/modules/payments/payment-gateways.js';
 
 const ML_PORT = vi.hoisted(() => {
   const port = 47_000 + Math.floor(Math.random() * 1000);
@@ -105,8 +106,13 @@ describe('ML integration (e2e)', () => {
     })
       .overrideProvider(Clock)
       .useValue({ now: () => now })
-      .overrideProvider(PaymentGateway)
-      .useValue(payments)
+      .overrideProvider(PaymentGateways)
+      .useValue(
+        new PaymentGateways({
+          TEST: payments,
+          LIVE: new DisabledPaymentGateway(),
+        }),
+      )
       .compile();
     app = moduleFixture.createNestApplication();
     await app.init();
