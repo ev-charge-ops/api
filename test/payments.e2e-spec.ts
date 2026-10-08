@@ -344,6 +344,30 @@ describe('Card payments (e2e)', () => {
     expect(session.body.status).toBe('INTERRUPTED');
   });
 
+  it('holds the energy up to the target state of charge of a percent limit', async () => {
+    const started = await startCommercial({
+      limit: { type: 'PERCENT', value: 80 },
+    });
+    expect(started.body).toMatchObject({
+      status: 'AWAITING_PAYMENT',
+      limit: { type: 'PERCENT', socPercent: 80 },
+      payment: { authorizedCents: 19 * 284 + 3000 },
+    });
+
+    payments.confirm(started.body.payment.paymentIntentId);
+    const active = await post(
+      `/sessions/${started.body.id}/payment/confirm`,
+      visitor,
+    ).expect(200);
+    expect(active.body).toMatchObject({
+      status: 'ACTIVE',
+      targetEnergyKwh: 19,
+      socPercent: 42,
+    });
+
+    await post(`/sessions/${started.body.id}/stop`, visitor).expect(200);
+  });
+
   it('lets the driver retry after a declined card and starts on confirm', async () => {
     const started = await startCommercial();
     const intentId: string = started.body.payment.paymentIntentId;

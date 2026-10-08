@@ -490,6 +490,82 @@ describe('Charging sessions (e2e)', () => {
     expect(invalid.body.message).toContain('month must use the YYYY-MM format');
   });
 
+  it('stops charging when the battery reaches the target state of charge', async () => {
+    now = PEAK_EVENING;
+    for (const value of [42, 30, 101, 80.5]) {
+      const invalid = await post('/sessions', neighbour, {
+        chargePointId: privatePointId,
+        limit: { type: 'PERCENT', value },
+      }).expect(400);
+      expect(invalid.body.code).toBe('INVALID_LIMIT');
+    }
+    await post('/sessions', neighbour, {
+      chargePointId: privatePointId,
+      limit: { type: 'PERCENT' },
+    }).expect(400);
+
+    const started = await post('/sessions', neighbour, {
+      chargePointId: privatePointId,
+      limit: { type: 'PERCENT', value: 90 },
+    }).expect(201);
+    const reachedAt = projectedCompletion({
+      chargerSerialNumber: 'L1-01',
+      transactionId: 'tx',
+      startedAt: PEAK_EVENING,
+      allocatedPowerKw: 7,
+      targetEnergyWh: 24_000,
+      batteryCapacityWh: MOCK_VEHICLE.batteryCapacityWh,
+      initialSocPercent: MOCK_VEHICLE.socPercent,
+      timeScale: SPEED,
+    })!;
+    expect(started.body).toMatchObject({
+      status: 'ACTIVE',
+      limit: {
+        type: 'PERCENT',
+        socPercent: 90,
+        energyKwh: null,
+        amountCents: null,
+      },
+      targetEnergyKwh: 24,
+      socPercent: 42,
+      projectedChargingEndsAt: reachedAt.toISOString(),
+      projectedGraceEndsAt: plusSimulatedMinutes(reachedAt, 10).toISOString(),
+    });
+
+    now = new Date(reachedAt.getTime() - 1000);
+    const charging = await get(
+      `/sessions/${started.body.id}`,
+      neighbour,
+    ).expect(200);
+    expect(charging.body).toMatchObject({
+      status: 'ACTIVE',
+      projectedChargingEndsAt: reachedAt.toISOString(),
+    });
+    expect(charging.body.energyKwh).toBeLessThan(24);
+
+    now = reachedAt;
+    const reached = await get(`/sessions/${started.body.id}`, neighbour).expect(
+      200,
+    );
+    expect(reached.body).toMatchObject({
+      status: 'GRACE',
+      energyKwh: 24,
+      socPercent: 90,
+      powerKw: 0,
+      chargingEndedAt: reachedAt.toISOString(),
+      graceEndsAt: plusSimulatedMinutes(reachedAt, 10).toISOString(),
+      projectedChargingEndsAt: reachedAt.toISOString(),
+    });
+    expect(reached.body.readings.at(-1)).toMatchObject({
+      at: reachedAt.toISOString(),
+      energyKwh: 24,
+      socPercent: 90,
+    });
+
+    await post(`/sessions/${started.body.id}/stop`, neighbour).expect(200);
+    now = PEAK_EVENING;
+  });
+
   it('interrupts the session when the charger does not start', async () => {
     const gateway = app.get(ChargerGateway);
     const start = vi
